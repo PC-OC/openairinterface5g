@@ -2,84 +2,114 @@
  * SPDX-License-Identifier: LicenseRef-CSSL-1.0
  */
 
-#include <sys/types.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <errno.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-
 #define TELNETSERVERCODE
-#include "telnetsrv.h"
+#include "telnetsrv_o1.h"
 
-#include "openair2/RRC/NR/nr_rrc_defs.h"
-#include "openair2/LAYER2/NR_MAC_gNB/nr_mac_gNB.h"
-#include "openair2/LAYER2/NR_MAC_gNB/nr_radio_config.h"
-#include "openair2/LAYER2/NR_MAC_gNB/mac_proto.h"
-#include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.c"
-#include "common/utils/nr/nr_common.h"
-#include "common/utils/ocp_itti/intertask_interface.h"
 
-#define ERROR_MSG_RET(mSG, aRGS...) do { prnt("FAILURE: " mSG, ##aRGS); return 1; } while (0)
-
-#define ISINITBWP "bwp3gpp:isInitialBwp"
-//#define CYCLPREF  "bwp3gpp:cyclicPrefix"
-#define NUMRBS    "bwp3gpp:numberOfRBs"
-#define STARTRB   "bwp3gpp:startRB"
-#define BWPSCS    "bwp3gpp:subCarrierSpacing"
-
-#define SSBFREQ "nrcelldu3gpp:ssbFrequency"
-#define ARFCNDL "nrcelldu3gpp:arfcnDL"
-#define BWDL    "nrcelldu3gpp:bSChannelBwDL"
-#define ARFCNUL "nrcelldu3gpp:arfcnUL"
-#define BWUL    "nrcelldu3gpp:bSChannelBwUL"
-#define PCI     "nrcelldu3gpp:nRPCI"
-#define TAC     "nrcelldu3gpp:nRTAC"
-#define MCC     "nrcelldu3gpp:mcc"
-#define MNC     "nrcelldu3gpp:mnc"
-#define SD      "nrcelldu3gpp:sd"
-#define SST     "nrcelldu3gpp:sst"
-
-typedef struct b {
-  long int dl;
-  long int ul;
-} b_t;
-
-typedef struct ue_stat {
-  rnti_t rnti;
-  b_t thr;
-} ue_stat_t;
-
-#define PRINTLIST_i(len, fmt, ...) \
-  { \
-    for (int i = 0; i < len; ++i) { \
-      if (i != 0) prnt(", "); \
-      prnt(fmt, __VA_ARGS__); \
-    } \
-  } \
-
-static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
+static void get_cu_stats(telnet_printfunc_t prnt, uint32_t node_id, char *node_name)
 {
-  UNUSED(debug);
-  if (buf)
-    ERROR_MSG_RET("no parameter allowed\n");
+  MessageDef *msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, RRC_GET_ACTIVE_UE_LIST);
+  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+  itti_receive_msg(TASK_TELNET, &msg_p);
+  Rrc_get_active_ue_list ue_list = msg_p->ittiMsg.rrc_active_ue_list;
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_O1_STATS);
-  MessageDef *resp_p;
+  MessageDef *msg_p2 = itti_alloc_new_message (TASK_RRC_GNB, 0, RRC_GET_CUUP_CELLS_LIST);
+  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p2);
+  itti_receive_msg(TASK_TELNET, &msg_p2);
+  Rrc_get_cuup_cells_list cell_list = msg_p2->ittiMsg.rrc_cuup_cells_list;
 
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
+  const int srb_flag = 0;
+  const int rb_id = 1;
+  int ue_id;
+  int sum_pdcpsduvolumeul = 0;
+  int sum_pdcpsduvolumedl = 0;
+  int sum_pdcppduvolumeul = 0;
+  int sum_pdcppduvolumedl = 0;
+  for(int i=0; i<ue_list.num_ues; i++){
+      ue_id = ue_list.rnti_list[i];
+      nr_pdcp_statistics_t pdcp = {0};
+      nr_pdcp_get_statistics(ue_id, srb_flag, rb_id, &pdcp);
+      sum_pdcpsduvolumedl += pdcp.rxsdu_bytes;
+      sum_pdcpsduvolumeul += pdcp.txsdu_bytes;
+      sum_pdcppduvolumedl += pdcp.rxpdu_bytes;
+      sum_pdcppduvolumeul += pdcp.txpdu_bytes;
   }
+  sum_pdcpsduvolumedl = sum_pdcpsduvolumedl*8/1000000;
+  sum_pdcpsduvolumeul = sum_pdcpsduvolumeul*8/1000000;
+  sum_pdcppduvolumedl = sum_pdcppduvolumedl*8/1000000;
+  sum_pdcppduvolumeul = sum_pdcppduvolumeul*8/1000000;
+  bool first = true;
 
-  Mac_get_o1_stats *current = &resp_p->ittiMsg.mac_get_o1_stats;
+  prnt("{\n");
+    prnt("  \"o1-config\": {\n");
+    prnt("    \"NRCELLCU\": [\n");
 
-  static uint64_t last_dl_used = 0;
-  static uint64_t last_dl_total = 0;
-  int diff_used = current->dl_used_prb_aggregate - last_dl_used;
-  int diff_total = current->dl_total_prb_aggregate - last_dl_total;
+    for(int i=0; i<cell_list.cell_count; i++){
+        if (!first)
+          prnt(",\n");
+        prnt("      {\n");
+        prnt("        \""CELLLOCALID"\": %d,\n", cell_list.cell_ids[i]);
+        prnt("        \""CU_MCC"\": \"%03d\",\n", cell_list.mccs[i]);
+        prnt("        \""CU_MNC"\": \"%0*d\",\n", cell_list.mnc_digit_lengths[i], cell_list.mncs[i]);
+        prnt("        \""CU_SST"\": %d,\n", cell_list.sst);
+        prnt("        \""CU_SD "\": %d\n", cell_list.sd);
+        prnt("      }");
+        first = false;
+    }
+    prnt("\n    ],\n");
+
+    /* TODO harmonize this between DU&CU to be able to have one in monolithic */
+    prnt("    \"device\": {\n");
+    prnt("      \"gNBId\": %d,\n", node_id);
+    prnt("      \"gnbName\": \"%s\",\n", node_name);
+    prnt("      \"vendor\": \"OpenAirInterface\"\n");
+    prnt("    },\n");
+    prnt("    \"O1-Operational\": {\n");
+    prnt("      \"PdcpSduVolumeUl\": %d,\n", sum_pdcpsduvolumeul);
+    prnt("      \"PdcpSduVolumeDl\": %d,\n", sum_pdcpsduvolumedl);
+    prnt("      \"PdcpPduVolumeUl\": %d,\n", sum_pdcppduvolumeul);
+    prnt("      \"PdcpPduVolumeDl\": %d\n", sum_pdcppduvolumedl);
+    prnt("    }\n");
+    prnt("  }\n");
+
+  prnt("}\n");
+  prnt("OK\n");
+}
+
+static void get_du_stats(telnet_printfunc_t prnt, gNB_MAC_INST *mac)
+{
+  NR_SCHED_LOCK(&mac->sched_lock);
+
+  int sum_rlcpacketdropratedl = 0;
+  int sum_rlcpacketdl = 0;
+  int sum_thpunresvoldl = 0;
+  int sum_thpvoldl = 0;
+  int sum_thpunresvolul = 0;
+  int sum_thpvolul = 0;
+
+  const f1ap_setup_req_t *sr = mac->f1_config.setup_req;
+  const f1ap_served_cell_info_t *cell_info = &sr->cell[0].info;
+
+  const NR_ServingCellConfigCommon_t *scc = mac->common_channels[0].ServingCellConfigCommon;
+  const NR_FrequencyInfoDL_t *frequencyInfoDL = scc->downlinkConfigCommon->frequencyInfoDL;
+  const NR_FrequencyInfoUL_t *frequencyInfoUL = scc->uplinkConfigCommon->frequencyInfoUL;
+  frame_type_t frame_type = get_frame_type(*frequencyInfoDL->frequencyBandList.list.array[0], *scc->ssbSubcarrierSpacing);
+  const NR_BWP_t *initialDL = &scc->downlinkConfigCommon->initialDownlinkBWP->genericParameters;
+  const NR_BWP_t *initialUL = &scc->uplinkConfigCommon->initialUplinkBWP->genericParameters;
+
+  int scs = initialDL->subcarrierSpacing;
+  AssertFatal(scs == initialUL->subcarrierSpacing, "different SCS for UL/DL not supported!\n");
+  int band = *frequencyInfoDL->frequencyBandList.list.array[0];
+  int nrb = frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth;
+  AssertFatal(nrb == frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth, "different BW for UL/DL not supported!\n");
+  frequency_range_t fr = band > 256 ? FR2 : FR1;
+  int bw_index = get_supported_band_index(scs, fr, nrb);
+  int bw_mhz = get_supported_bw_mhz(fr, bw_index);
+
+  const dlul_mac_stats_t *stat = &mac->mac_stats;
+  static dlul_mac_stats_t last = {0};
+  int diff_used = stat->dl.used_prb_aggregate - last.dl.used_prb_aggregate;
+  int diff_total = stat->dl.total_prb_aggregate - last.dl.total_prb_aggregate;
   int load = diff_total > 0 ? 100 * diff_used / diff_total : 0;
   last_dl_used = current->dl_used_prb_aggregate;
   last_dl_total = current->dl_total_prb_aggregate;
@@ -94,24 +124,42 @@ static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
   static long last_total_ul[MAX_MOBILES_PER_GNB] = {0};
 
   ue_stat_t ue_stat[MAX_MOBILES_PER_GNB] = {0};
-  int num_ues = current->num_ues;
-
-  for (int i = 0; i < num_ues; i++) {
-    const rnti_t rnti = current->ue_rlc_stats[i].rnti;
-
-    if (last_total_dl[i] > current->ue_rlc_stats[i].txpdu_bytes)
-      last_total_dl[i] = current->ue_rlc_stats[i].txpdu_bytes;
-    if (last_total_ul[i] > current->ue_rlc_stats[i].rxpdu_bytes)
-      last_total_ul[i] = current->ue_rlc_stats[i].rxpdu_bytes;
-
-    ue_stat[i].rnti = rnti;
-    ue_stat[i].thr.dl = (current->ue_rlc_stats[i].txpdu_bytes - last_total_dl[i]) * 8 / diff_msec;
-    ue_stat[i].thr.ul = (current->ue_rlc_stats[i].rxpdu_bytes - last_total_ul[i]) * 8 / diff_msec;
-
-    last_total_dl[i] = current->ue_rlc_stats[i].txpdu_bytes;
-    last_total_ul[i] = current->ue_rlc_stats[i].rxpdu_bytes;
+  int num_ues = 0;
+  UE_iterator((NR_UE_info_t **)mac->UE_info.connected_ue_list, it) {
+    nr_rlc_statistics_t rlc = {0};
+    nr_rlc_get_statistics(it->rnti, srb_flag, rb_id, &rlc);
+    sum_rlcpacketdropratedl += rlc.rxsdu_dd_pkts;
+    sum_rlcpacketdl += rlc.rxsdu_pkts;
+    b_t *lt = &last_total[num_ues];
+    ue_stat_t *ue_s = &ue_stat[num_ues];
+    ue_s->rnti = it->rnti;
+    // static var last_total: we might have old data, larger than what
+    // reports RLC, leading to a huge number -> cut off to zero
+    if (lt->dl > rlc.txpdu_bytes)
+      lt->dl = rlc.txpdu_bytes;
+    if (lt->ul > rlc.rxpdu_bytes)
+      lt->ul = rlc.rxpdu_bytes;
+    if (lt->unres_ul > rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes)
+      lt->unres_ul = rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes;
+    if (lt->unres_dl > rlc.txpdu_bytes + rlc.txpdu_dd_bytes)
+      lt->unres_dl = rlc.txpdu_bytes + rlc.txpdu_dd_bytes;
+    ue_s->thr.dl = (rlc.txpdu_bytes - lt->dl) * 8 / diff_msec;
+    ue_s->thr.ul = (rlc.rxpdu_bytes - lt->ul) * 8 / diff_msec;
+    ue_s->thr.unres_ul = (rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes - lt->unres_ul) * 8 / diff_msec;
+    ue_s->thr.unres_dl = (rlc.txpdu_bytes + rlc.txpdu_dd_bytes - lt->unres_dl) * 8 / diff_msec;
+    lt->dl = rlc.txpdu_bytes;
+    lt->ul = rlc.rxpdu_bytes;
+    lt->unres_ul = rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes;
+    lt->unres_dl = rlc.txpdu_bytes + rlc.txpdu_dd_bytes;
+    sum_thpunresvoldl = lt->unres_dl;
+    sum_thpvoldl += lt->dl;
+    sum_thpunresvolul = lt->unres_ul;
+    sum_thpvolul += lt->ul;
+    num_ues++;
   }
-
+  int RlcPacketDropRateDl = sum_rlcpacketdl == 0 ? 1 : 1000000*(sum_rlcpacketdropratedl/sum_rlcpacketdl);
+  double unres_ul = sum_thpunresvolul+sum_thpvolul > 0 ? 100*sum_thpunresvolul/(sum_thpunresvolul+sum_thpvolul) : 0;
+  double unres_dl = sum_thpunresvoldl+sum_thpvoldl > 0 ? 100*sum_thpunresvoldl/(sum_thpunresvoldl+sum_thpvoldl) : 0;
   prnt("{\n");
     prnt("  \"o1-config\": {\n");
 
@@ -131,17 +179,21 @@ static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
     prnt("    },\n");
 
     prnt("    \"NRCELLDU\": {\n");
-    prnt("      \"" SSBFREQ "\": %ld,\n", current->ssbFrequency);
-    prnt("      \"" ARFCNDL "\": %ld,\n", current->arfcnDL);
-    prnt("      \"" BWDL "\": %ld,\n", current->bw_mhz);
-    prnt("      \"" ARFCNUL "\": %ld,\n", current->arfcnUL);
-    prnt("      \"" BWUL "\": %ld,\n", current->bw_mhz);
-    prnt("      \"" PCI "\": %ld,\n", current->pci);
-    prnt("      \"" TAC "\": %ld,\n", current->tac);
-    prnt("      \"" MCC "\": \"%03d\",\n", current->mcc);
-    prnt("      \"" MNC "\": \"%0*d\",\n", current->mnc_digit_length, current->mnc);
-    prnt("      \"" SD  "\": %d,\n", current->sd);
-    prnt("      \"" SST "\": %d\n", current->sst);
+    prnt("      \"" SSBFREQ "\": %ld,\n", *scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB);
+    prnt("      \"" ARFCNDL "\": %ld,\n", frequencyInfoDL->absoluteFrequencyPointA);
+    prnt("      \"" BWDL "\": %ld,\n", bw_mhz);
+    prnt("      \"" ARFCNUL "\": %ld,\n", frequencyInfoUL->absoluteFrequencyPointA ? *frequencyInfoUL->absoluteFrequencyPointA : frequencyInfoDL->absoluteFrequencyPointA);
+    prnt("      \"" BWUL "\": %ld,\n", bw_mhz);
+    prnt("      \"" PCI "\": %ld,\n", *scc->physCellId);
+    prnt("      \"" TAC "\": %ld,\n", *cell_info->tac);
+    prnt("      \"" MCC "\": \"%03d\",\n", cell_info->plmn.mcc);
+    prnt("      \"" MNC "\": \"%0*d\",\n", cell_info->plmn.mnc_digit_length, cell_info->plmn.mnc);
+    prnt("      \"" SD  "\": %d,\n", cell_info->nssai[0].sd);
+    prnt("      \"" SST "\": %d,\n", cell_info->nssai[0].sst);
+    prnt("      \"" SSBSCS "\": %d,\n", 30);
+    prnt("      \"" SSBPRD "\": %d,\n", 20);
+    prnt("      \"" SSBOFF "\": %d,\n", 0);
+    prnt("      \"" SSBDUR "\": %d\n", 1);
     prnt("    },\n");
     prnt("    \"device\": {\n");
     prnt("      \"gnbId\": %d,\n", current->gNB_DU_id);
@@ -157,13 +209,38 @@ static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
     prnt("    \"ues\": ["); PRINTLIST_i(num_ues, "%d", ue_stat[i].rnti); prnt("],\n");
     prnt("    \"load\": %d,\n", load);
     prnt("    \"ues-thp\": [");
-      PRINTLIST_i(num_ues, "\n      {\"rnti\": %d, \"dl\": %ld, \"ul\": %ld}", ue_stat[i].rnti, ue_stat[i].thr.dl, ue_stat[i].thr.ul);
-    prnt("\n    ]\n");
+      PRINTLIST_i(num_ues, "\n      {\"rnti\": %d, \"dl\": %ld, \"ul\": %ld, \"unres_ul\": %ld, \"unres_dl\": %ld}", ue_stat[i].rnti, ue_stat[i].thr.dl, ue_stat[i].thr.ul, unres_ul, unres_dl);
+    prnt("\n    ],\n");
+    prnt("    \"RlcPacketDropRateDl\": %d\n", RlcPacketDropRateDl);
     prnt("  }\n");
   prnt("}\n");
   prnt("OK\n");
 
-  itti_free(ITTI_MSG_ORIGIN_ID(resp_p), resp_p);
+  NR_SCHED_UNLOCK(&mac->sched_lock);
+}
+
+static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
+{
+  UNUSED(debug);
+
+  if (buf)
+    ERROR_MSG_RET("no parameter allowed\n");
+
+
+  gNB_MAC_INST *mac = RC.nrmac ? RC.nrmac[0] : NULL;
+  bool is_du = mac != NULL;
+  if (is_du)
+    get_du_stats(prnt, mac);
+  else {
+    MessageDef *msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, RRC_GET_NODE_INFO);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+    itti_receive_msg(TASK_TELNET, &msg_p);
+    Rrc_get_node_info *ni = &msg_p->ittiMsg.rrc_node_info;
+    bool is_cu = NODE_IS_MONOLITHIC(ni->node_type) || NODE_IS_CU(ni->node_type);
+    if (is_cu)
+      get_cu_stats(prnt, ni->node_id, ni->node_name);
+  }
+
   return 0;
 }
 
