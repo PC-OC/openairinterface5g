@@ -286,8 +286,15 @@ int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
   }
   const int *endl = ctx->nb_writers + write_buff_index + nsamps;
   for (int *i = ctx->nb_writers + write_buff_index; i < endl; i++) *i = *i + 1;
-  for (int i = 0; i < nsamps; i++) {
-      ((openair0_timestamp_t *)ctx->sample_timestamps)[(write_buff_index + i) % ctx->sz] = timestamp + i;
+  openair0_timestamp_t *ts_ptr = (openair0_timestamp_t *)ctx->sample_timestamps + write_buff_index;
+  int remaining = nsamps;
+  openair0_timestamp_t current_ts = timestamp;
+  while (remaining > 0) {
+      *ts_ptr++ = current_ts++;
+      remaining--;
+      if (ts_ptr >= (openair0_timestamp_t *)ctx->sample_timestamps + ctx->sz) {
+          ts_ptr = (openair0_timestamp_t *)ctx->sample_timestamps;
+      }
   }
   ctx->ts_per_writer[0] = timestamp + nsamps;
 
