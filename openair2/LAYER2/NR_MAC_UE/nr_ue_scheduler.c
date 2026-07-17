@@ -166,7 +166,7 @@ void update_mac_dl_timers(NR_UE_MAC_INST_t *mac)
 {
   bool ra_window_expired = nr_timer_tick(&mac->ra.response_window_timer);
   if (ra_window_expired) // consider the Random Access Response reception not successful
-    nr_rar_not_successful(mac);
+      nr_rar_not_successful(mac);
   bool alignment_timer_expired = nr_timer_tick(&mac->time_alignment_timer);
   if (alignment_timer_expired)
     handle_time_alignment_timer_expired(mac);
