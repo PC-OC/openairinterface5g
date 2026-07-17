@@ -28,7 +28,7 @@ static void maybe_shrink(seq_arr_t* arr)
   if (arr->size > MIN_SIZE && occ < 0.25) {
     assert(arr->cap > MIN_SIZE);
     seq_arr_t tmp = {.data = NULL, .size = arr->size, .elt_size = arr->elt_size, .cap = arr->cap / 2};
-    tmp.data = calloc(tmp.cap, tmp.cap);
+    tmp.data = malloc(tmp.cap * tmp.elt_size);
     assert(tmp.data != NULL && "Memory exhausted");
     assert(arr->size <= tmp.cap);
     memcpy(tmp.data, arr->data, arr->size * arr->elt_size);
@@ -120,8 +120,6 @@ void seq_arr_erase_it(seq_arr_t* arr, void* start_it, void* end_it, void (*free_
   const int32_t num_elm_erase = num_bytes_erase / arr->elt_size;
   assert(num_elm_erase > 0);
   arr->size -= num_elm_erase;
-
-  memset(seq_arr_end(arr), 0, num_bytes_erase);
 
   maybe_shrink(arr);
 }
