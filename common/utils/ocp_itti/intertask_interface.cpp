@@ -96,7 +96,7 @@ typedef struct timer_elm_s {
       if (s > t->admin.queue_size) {
         LOG_E(TMR, "Queue for %s task contains %ld messages\n", itti_get_task_name(destination_task_id), s);
       } else {
-        LOG_I(ITTI,
+        LOG_D(ITTI,
               "Queue for %s task size: %ld (last message %s)\n",
               itti_get_task_name(destination_task_id),
               s + 1,
@@ -105,7 +105,7 @@ typedef struct timer_elm_s {
       t->last_log_size = s;
     } else if (t->last_log_size && s < t->admin.queue_size / 10) {
       // Inform when the queue decreases
-      LOG_I(ITTI, "Queue for %s task size is back under 10%% of max size\n", itti_get_task_name(destination_task_id));
+      LOG_D(ITTI, "Queue for %s task size is back under 10%% of max size\n", itti_get_task_name(destination_task_id));
       t->last_log_size = 0;
     }
 
@@ -221,8 +221,8 @@ typedef struct timer_elm_s {
 
     AssertFatal (nb_events >=0,
                  "epoll_wait failed for task %s, nb fds %d, timeout %lu: %s!\n",
-                 itti_get_task_name(task_id), t->nb_fd_epoll, 
-                 t->next_timer != UINT64_MAX ? t->next_timer-current_time : -1, 
+                 itti_get_task_name(task_id), t->nb_fd_epoll,
+                 t->next_timer != UINT64_MAX ? t->next_timer-current_time : -1,
                  strerror(errno));
     LOG_D(ITTI,"receive on %d descriptors for %s\n", nb_events, itti_get_task_name(task_id));
 
