@@ -52,17 +52,14 @@ static int set_transport(openair0_device_t *device)
     case ETHERNET_TP:
       LOG_I(HW, "[%s] has loaded ETHERNET trasport protocol.\n", dev_type);
       return 0;
-      break;
 
     case NONE_TP:
       LOG_I(HW, "[%s] has not loaded a transport protocol.\n", dev_type);
       return 0;
-      break;
 
     default:
       LOG_E(HW, "[%s] invalid transport protocol.\n", dev_type);
       return -1;
-      break;
   }
 }
 
