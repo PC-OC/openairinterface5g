@@ -137,6 +137,64 @@ static void init_reorder(re_order_t *r, openair0_config_t *openair0_cfg)
   r->ring = calloc(openair0_cfg->tx_num_channels, sizeof(*r->ring));
   for (int i = 0; i < openair0_cfg->tx_num_channels; i++)
     r->ring[i] = create_ring(r->sz * sizeof(c16_t));
+
+  r->initDone = false;
+  r->nextTS = 0;
+  r->end = 0;
+  r->ts_per_writer = NULL;
+  r->consumer_args = NULL;
+  r->consumer_thread = 0;
+  r->sample_timestamps = create_ring(r->sz * sizeof(openair0_timestamp_t));
+  memset(r->sample_timestamps, 0, r->sz * sizeof(openair0_timestamp_t));
+  pthread_cond_init(&r->cond_data_available, NULL);
+}
+
+void *reorder_consumer_thread(void *arg) {
+  reorder_consumer_args_t *args = (reorder_consumer_args_t *)arg;
+  openair0_device_t *device = args->device;
+  re_order_t *ctx = args->ctx;
+  int nbAnt = args->nbAnt;
+  int grain = ctx->grain;
+
+  while (!args->stop) {
+    pthread_mutex_lock(&ctx->mutex_store);
+    while (!args->stop && ctx->end <= ctx->nextTS) {
+      pthread_cond_wait(&ctx->cond_data_available, &ctx->mutex_store);
+    }
+
+    if (args->stop) {
+      pthread_mutex_unlock(&ctx->mutex_store);
+      break;
+    }
+
+    uint64_t ts = ctx->nextTS;
+    openair0_timestamp_t original_ts = ((openair0_timestamp_t *)ctx->sample_timestamps)[ts % ctx->sz];
+
+    void *ptr[nbAnt];
+    for (int a = 0; a < nbAnt; a++) {
+        ptr[a] = ((c16_t *)ctx->ring[a]) + (ts % ctx->sz);
+    }
+    int nsamps_to_process = min(grain, (int)(ctx->end - ctx->nextTS));
+    if (nsamps_to_process <= 0) {
+        pthread_mutex_unlock(&ctx->mutex_store);
+        continue;
+    }
+    ctx->nextTS += nsamps_to_process;
+    pthread_mutex_unlock(&ctx->mutex_store);
+
+    if (args->nrue_ru_write) {
+        args->nrue_ru_write(NULL, original_ts, ptr, nsamps_to_process, nbAnt, 0);
+    } else if (device) {
+        device->trx_write_func(device, original_ts + device->firstTS, ptr, nsamps_to_process, nbAnt, 0);
+    }
+    pthread_mutex_lock(&ctx->mutex_store);
+    for (int a = 0; a < nbAnt; a++) {
+      memset(((c16_t *)ctx->ring[a]) + (ts % ctx->sz), 0, nsamps_to_process * sizeof(c16_t));
+    }
+    memset(ctx->nb_writers + (ts % ctx->sz), 0, nsamps_to_process * sizeof(*ctx->nb_writers));
+    pthread_mutex_unlock(&ctx->mutex_store);
+  }
+  return NULL;
 }
 
 int openair0_device_load(openair0_device_t *device, openair0_config_t *openair0_cfg)
@@ -153,6 +211,20 @@ int openair0_device_load(openair0_device_t *device, openair0_config_t *openair0_
     AssertFatal(false, "can't open the radio device: %s\n", get_devname(device->type));
   }
   init_reorder(&device->reOrder, openair0_cfg);
+  re_order_t *ctx = &device->reOrder;
+  reorder_consumer_args_t *args = malloc(sizeof(*args));
+  args->ctx = ctx;
+  args->device = device;
+  args->nrue_ru_write = NULL;
+  args->nbAnt = openair0_cfg->tx_num_channels;
+  args->stop = false;
+
+  if (pthread_create(&ctx->consumer_thread, NULL, reorder_consumer_thread, args) != 0) {
+    free(args);
+    LOG_E(HW, "Failed to create consumer thread\n");
+    return -1;
+  }
+  ctx->consumer_args = args;
   return rc;
 }
 
@@ -194,63 +266,47 @@ int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
                                   int flags)
 {
   re_order_t *ctx = &device->reOrder;
-  LOG_D(HW,
-        "received write order ts: %lu + %lu, nb samples %d, next ts %lu flags %d\n",
-        timestamp,
-        device->firstTS,
-        nsamps,
-        timestamp + nsamps,
-        flags);
 
-  // Add data in the ring buffer
   pthread_mutex_lock(&ctx->mutex_store);
   if (!ctx->initDone) {
     ctx->nextTS = timestamp;
+    ctx->end = timestamp;
+    if (nb_writers > 0) {
+      ctx->ts_per_writer = calloc(nb_writers, sizeof(*ctx->ts_per_writer));
+    } else {
+      LOG_W(HW, "nb_writers is 0! Using fallback size 1\n");
+      ctx->ts_per_writer = calloc(1, sizeof(*ctx->ts_per_writer));
+    }
     ctx->initDone = true;
   }
-  // We have the write exclusivity
-  AssertFatal(nb_writers, "no UE writers, the minimum is 1");
-  AssertFatal(nbAnt, "no tx antennas, the minimum is 1");
   int write_buff_index = timestamp % ctx->sz;
   for (int a = 0; a < nbAnt; a++) {
-    c16_t *out = ((c16_t *)ctx->ring[a]) + write_buff_index;
-    c16adds(txp[a], out, out, nsamps);
+    c16adds(txp[a], ((c16_t *)ctx->ring[a]) + write_buff_index,
+            ((c16_t *)ctx->ring[a]) + write_buff_index, nsamps);
   }
   const int *endl = ctx->nb_writers + write_buff_index + nsamps;
-  for (int *i = ctx->nb_writers + write_buff_index; i < endl; i++)
-    *i = *i + 1;
+  for (int *i = ctx->nb_writers + write_buff_index; i < endl; i++) *i = *i + 1;
+  for (int i = 0; i < nsamps; i++) {
+      ((openair0_timestamp_t *)ctx->sample_timestamps)[(write_buff_index + i) % ctx->sz] = timestamp + i;
+  }
+  ctx->ts_per_writer[0] = timestamp + nsamps;
 
-  // check it we have ready output now
-  int consume_buff_index = ctx->nextTS % ctx->sz;
-  int end = consume_buff_index;
-  const int grain = ctx->grain;
-  while (ctx->nb_writers[end] >= nb_writers)
-    end++;
 
-  if (end - consume_buff_index > grain) {
-    while (consume_buff_index + grain <= end) {
-      LOG_D(HW, "sending to RF: %ld\n", timestamp);
-      if (flags || IS_SOFTMODEM_RFSIM) {
-        void *ptr[nbAnt];
-        for (int a = 0; a < nbAnt; a++)
-          ptr[a] = ((c16_t *)ctx->ring[a]) + consume_buff_index;
-        int wroteSamples;
-        if (nrue_ru_write)
-          wroteSamples = nrue_ru_write(UE, ctx->nextTS, ptr, grain, nbAnt, flags);
-        else
-          wroteSamples = device->trx_write_func(device, ctx->nextTS, ptr, grain, nbAnt, flags);
-        if (wroteSamples != grain)
-          LOG_W(HW, "Failed to write to RF: wrote %d out of %d samples\n", wroteSamples, grain);
-      }
-      for (int a = 0; a < nbAnt; a++)
-        memset(((c16_t *)ctx->ring[a]) + consume_buff_index, 0, grain * sizeof(c16_t));
-      memset(ctx->nb_writers + consume_buff_index, 0, grain * sizeof(*ctx->nb_writers));
-      consume_buff_index += grain;
-      ctx->nextTS += grain;
-      timestamp += grain;
+  uint64_t max_possible_end = timestamp + nsamps;
+  int guard = 0;
+  while (ctx->end < max_possible_end && guard < ctx->sz) {
+    if (ctx->nb_writers[ctx->end % ctx->sz] >= nb_writers) {
+      ctx->end++;
+      guard++;
+    } else {
+      break;
     }
   }
+  if (ctx->end > ctx->nextTS) {
+    pthread_cond_signal(&ctx->cond_data_available);
+  }
   pthread_mutex_unlock(&ctx->mutex_store);
+
   return nsamps;
 }
 
@@ -265,11 +321,30 @@ void openair0_write_reorder_clear_context(openair0_device_t *device)
   re_order_t *ctx = &device->reOrder;
   if (!ctx->initDone)
     return;
-  if (pthread_mutex_trylock(&ctx->mutex_write) != 0)
-    LOG_E(HW, "write_reorder_clear_context call while still writing on the device\n");
-  else
-    pthread_mutex_unlock(&ctx->mutex_write);
-  pthread_mutex_lock(&ctx->mutex_store);
+  if (ctx->consumer_args) {
+    pthread_mutex_lock(&ctx->mutex_store);
+    ctx->consumer_args->stop = true;
+    pthread_cond_signal(&ctx->cond_data_available);
+    pthread_mutex_unlock(&ctx->mutex_store);
+
+    if (ctx->consumer_thread != 0) {
+      pthread_join(ctx->consumer_thread, NULL);
+    }
+    free(ctx->consumer_args);
+    ctx->consumer_args = NULL;
+  }
+  pthread_mutex_lock(&ctx->mutex_write);
   ctx->initDone = false;
+  pthread_mutex_unlock(&ctx->mutex_write);
+
+  pthread_mutex_lock(&ctx->mutex_store);
+  if (ctx->ts_per_writer) {
+    free(ctx->ts_per_writer);
+    ctx->ts_per_writer = NULL;
+  }
+  if (ctx->sample_timestamps) {
+    free(ctx->sample_timestamps);
+    ctx->sample_timestamps = NULL;
+  }
   pthread_mutex_unlock(&ctx->mutex_store);
 }

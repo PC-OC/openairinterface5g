@@ -320,16 +320,33 @@ typedef struct {
   bool write_thread_exit;
 } openair0_thread_t;
 
+typedef struct PHY_VARS_NR_UE_s PHY_VARS_NR_UE;
+typedef int (*nrue_ru_write_t)(PHY_VARS_NR_UE *UE, openair0_timestamp_t timestamp, void **txp, int nsamps, int nbAnt, int flags);
+
+typedef struct {
+  struct re_order_s *ctx;
+  openair0_device_t *device;
+  nrue_ru_write_t nrue_ru_write;
+  int nbAnt;
+  volatile bool stop;
+} reorder_consumer_args_t;
+
 #define WRITE_QUEUE_SZ 20
 typedef struct {
   bool initDone;
   pthread_mutex_t mutex_write;
   pthread_mutex_t mutex_store;
   openair0_timestamp_t nextTS;
+  int end;
   int sz;
   int grain;
   int *nb_writers;
+  openair0_timestamp_t *ts_per_writer;
   void **ring;
+  pthread_t consumer_thread;
+  reorder_consumer_args_t *consumer_args;
+  pthread_cond_t cond_data_available;
+  openair0_timestamp_t *sample_timestamps;
 } re_order_t;
 
 /*!\brief structure holds the parameters to configure RF devices */
@@ -613,8 +630,6 @@ extern "C"
 #endif
 
 int load_lib(openair0_device_t *device, openair0_config_t *openair0_cfg, eth_params_t *eth_cfg, rau_type_t rau_type);
-typedef struct PHY_VARS_NR_UE_s PHY_VARS_NR_UE;
-typedef int (*nrue_ru_write_t)(PHY_VARS_NR_UE *UE, openair0_timestamp_t timestamp, void **txp, int nsamps, int nbAnt, int flags);
 
 int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
                                   PHY_VARS_NR_UE *UE,
