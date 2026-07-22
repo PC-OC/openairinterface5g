@@ -145,6 +145,8 @@ static void init_reorder(re_order_t *r, openair0_config_t *openair0_cfg)
   memset(r->sample_timestamps, 0, r->sz * sizeof(openair0_timestamp_t));
   pthread_cond_init(&r->cond_data_available, NULL);
   pthread_cond_init(&r->cond_space_available, NULL);
+  r->last_ts_per_ue = NULL;
+  r->max_nb_writers = 0;
 }
 
 void *reorder_consumer_thread(void *arg) {
@@ -166,34 +168,38 @@ void *reorder_consumer_thread(void *arg) {
     }
 
     uint64_t ts = ctx->nextTS;
-    openair0_timestamp_t original_ts = ((openair0_timestamp_t *)ctx->sample_timestamps)[ts % ctx->sz];
+    if (ctx->nb_writers[ts % ctx->sz] >= nbAnt) {
+      openair0_timestamp_t original_ts = ((openair0_timestamp_t *)ctx->sample_timestamps)[ts % ctx->sz];
 
-    void *ptr[nbAnt];
-    for (int a = 0; a < nbAnt; a++) {
+      void *ptr[nbAnt];
+      for (int a = 0; a < nbAnt; a++) {
         ptr[a] = ((c16_t *)ctx->ring[a]) + (ts % ctx->sz);
-    }
-    int nsamps_to_process = min(grain, (int)(ctx->end - ctx->nextTS));
-    if (nsamps_to_process <= 0) {
-        pthread_mutex_unlock(&ctx->mutex_store);
-        continue;
-    }
-    ctx->nextTS += nsamps_to_process;
+      }
 
-    pthread_cond_signal(&ctx->cond_space_available);
+      int nsamps_to_process = min(grain, (int)(ctx->end - ctx->nextTS));
+      ctx->nextTS += nsamps_to_process;
 
-    pthread_mutex_unlock(&ctx->mutex_store);
+      pthread_cond_signal(&ctx->cond_space_available);
+      pthread_mutex_unlock(&ctx->mutex_store);
 
-    if (args->nrue_ru_write) {
+      if (args->nrue_ru_write) {
         args->nrue_ru_write(NULL, original_ts, ptr, nsamps_to_process, nbAnt, 0);
-    } else if (device) {
+      } else if (device) {
         device->trx_write_func(device, original_ts + device->firstTS, ptr, nsamps_to_process, nbAnt, 0);
+      }
+
+      pthread_mutex_lock(&ctx->mutex_store);
+      for (int a = 0; a < nbAnt; a++) {
+        memset(((c16_t *)ctx->ring[a]) + (ts % ctx->sz), 0, nsamps_to_process * sizeof(c16_t));
+      }
+      memset(ctx->nb_writers + (ts % ctx->sz), 0, nsamps_to_process * sizeof(*ctx->nb_writers));
+      pthread_mutex_unlock(&ctx->mutex_store);
+    } else {
+      LOG_E(HW, "Missing data at ts=%lu (end=%lu, writers=%d/%d)\n",
+            ts, ctx->end, ctx->nb_writers[ts % ctx->sz], nbAnt);
+      pthread_mutex_unlock(&ctx->mutex_store);
+      continue;
     }
-    pthread_mutex_lock(&ctx->mutex_store);
-    for (int a = 0; a < nbAnt; a++) {
-      memset(((c16_t *)ctx->ring[a]) + (ts % ctx->sz), 0, nsamps_to_process * sizeof(c16_t));
-    }
-    memset(ctx->nb_writers + (ts % ctx->sz), 0, nsamps_to_process * sizeof(*ctx->nb_writers));
-    pthread_mutex_unlock(&ctx->mutex_store);
   }
   return NULL;
 }
@@ -296,14 +302,12 @@ int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
   int remaining = nsamps;
   openair0_timestamp_t current_ts = timestamp;
   while (remaining > 0) {
-      *ts_ptr++ = current_ts++;
-      remaining--;
-      if (ts_ptr >= (openair0_timestamp_t *)ctx->sample_timestamps + ctx->sz) {
-          ts_ptr = (openair0_timestamp_t *)ctx->sample_timestamps;
-      }
+    *ts_ptr++ = current_ts++;
+    remaining--;
+    if (ts_ptr >= (openair0_timestamp_t *)ctx->sample_timestamps + ctx->sz) {
+      ts_ptr = (openair0_timestamp_t *)ctx->sample_timestamps;
+    }
   }
-  ctx->ts_per_writer[0] = timestamp + nsamps;
-
 
   uint64_t max_possible_end = timestamp + nsamps;
   int guard = 0;

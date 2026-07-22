@@ -348,6 +348,8 @@ typedef struct {
   pthread_cond_t cond_data_available;
   pthread_cond_t cond_space_available;
   openair0_timestamp_t *sample_timestamps;
+  openair0_timestamp_t *last_ts_per_ue;
+  int max_nb_writers;
 } re_order_t;
 
 /*!\brief structure holds the parameters to configure RF devices */
