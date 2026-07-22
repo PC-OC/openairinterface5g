@@ -144,6 +144,7 @@ static void init_reorder(re_order_t *r, openair0_config_t *openair0_cfg)
   r->sample_timestamps = create_ring(r->sz * sizeof(openair0_timestamp_t));
   memset(r->sample_timestamps, 0, r->sz * sizeof(openair0_timestamp_t));
   pthread_cond_init(&r->cond_data_available, NULL);
+  pthread_cond_init(&r->cond_space_available, NULL);
 }
 
 void *reorder_consumer_thread(void *arg) {
@@ -177,6 +178,9 @@ void *reorder_consumer_thread(void *arg) {
         continue;
     }
     ctx->nextTS += nsamps_to_process;
+
+    pthread_cond_signal(&ctx->cond_space_available);
+
     pthread_mutex_unlock(&ctx->mutex_store);
 
     if (args->nrue_ru_write) {
@@ -276,6 +280,11 @@ int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
     }
     ctx->initDone = true;
   }
+
+  while (ctx->end - ctx->nextTS >= ctx->sz) {
+    pthread_cond_wait(&ctx->cond_space_available, &ctx->mutex_store);
+  }
+
   int write_buff_index = timestamp % ctx->sz;
   for (int a = 0; a < nbAnt; a++) {
     c16adds(txp[a], ((c16_t *)ctx->ring[a]) + write_buff_index,
@@ -329,6 +338,7 @@ void openair0_write_reorder_clear_context(openair0_device_t *device)
     pthread_mutex_lock(&ctx->mutex_store);
     ctx->consumer_args->stop = true;
     pthread_cond_signal(&ctx->cond_data_available);
+    pthread_cond_signal(&ctx->cond_space_available);
     pthread_mutex_unlock(&ctx->mutex_store);
 
     if (ctx->consumer_thread != 0) {

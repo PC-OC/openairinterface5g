@@ -346,6 +346,7 @@ typedef struct {
   pthread_t consumer_thread;
   reorder_consumer_args_t *consumer_args;
   pthread_cond_t cond_data_available;
+  pthread_cond_t cond_space_available;
   openair0_timestamp_t *sample_timestamps;
 } re_order_t;
 
