@@ -357,45 +357,40 @@ int openair0_write_reorder(openair0_device_t *device, openair0_timestamp_t times
 void openair0_write_reorder_clear_context(openair0_device_t *device) {
   LOG_W(HW, "received write reorder clear context\n");
   re_order_t *ctx = &device->reOrder;
-  if (!ctx->initDone)
-    return;
 
+  pthread_mutex_lock(&ctx->mutex_store);
+
+  if (!ctx->initDone) {
+    pthread_mutex_unlock(&ctx->mutex_store);
+    return;
+  }
 
   ctx->refcount--;
-  if(ctx->refcount == 0){
+  if (ctx->refcount == 0) {
+    pthread_t thread_to_join = ctx->consumer_thread;
+    reorder_consumer_args_t *args_to_free = ctx->consumer_args;
+
     if (ctx->consumer_args) {
-      pthread_mutex_lock(&ctx->mutex_store);
       ctx->consumer_args->stop = true;
       pthread_cond_signal(&ctx->cond_data_available);
       pthread_cond_signal(&ctx->cond_space_available);
-      pthread_mutex_unlock(&ctx->mutex_store);
-
-      if (ctx->consumer_thread != 0) {
-        pthread_join(ctx->consumer_thread, NULL);
-      }
-      free(ctx->consumer_args);
-      ctx->consumer_args = NULL;
     }
-    pthread_mutex_lock(&ctx->mutex_write);
+    ctx->consumer_args = NULL;
+    ctx->consumer_thread = 0;
     ctx->initDone = false;
-    pthread_mutex_unlock(&ctx->mutex_write);
 
-    pthread_mutex_lock(&ctx->mutex_store);
     if (ctx->ts_per_writer) {
       free(ctx->ts_per_writer);
       ctx->ts_per_writer = NULL;
     }
-
     if (ctx->sample_timestamps) {
       munmap(ctx->sample_timestamps, ctx->sz * sizeof(openair0_timestamp_t));
       ctx->sample_timestamps = NULL;
     }
-
     if (ctx->nb_writers) {
       munmap(ctx->nb_writers, ctx->sz * sizeof(*ctx->nb_writers));
       ctx->nb_writers = NULL;
     }
-
     if (ctx->ring) {
       for (int i = 0; i < device->openair0_cfg->tx_num_channels; i++) {
         if (ctx->ring[i]) {
@@ -405,11 +400,20 @@ void openair0_write_reorder_clear_context(openair0_device_t *device) {
       free(ctx->ring);
       ctx->ring = NULL;
     }
-
     if (ctx->last_ts_per_ue) {
-        free(ctx->last_ts_per_ue);
-        ctx->last_ts_per_ue = NULL;
+      free(ctx->last_ts_per_ue);
+      ctx->last_ts_per_ue = NULL;
     }
+
+    pthread_mutex_unlock(&ctx->mutex_store);
+
+    if (thread_to_join != 0) {
+      pthread_join(thread_to_join, NULL);
+    }
+    if (args_to_free) {
+      free(args_to_free);
+    }
+  } else {
+    pthread_mutex_unlock(&ctx->mutex_store);
   }
-  pthread_mutex_unlock(&ctx->mutex_store);
 }
