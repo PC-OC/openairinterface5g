@@ -351,8 +351,7 @@ int openair0_write_reorder(openair0_device_t *device, openair0_timestamp_t times
   return openair0_write_reorder_common(NULL, NULL, device, timestamp, txp, nsamps, 1, nbAnt, flags);
 }
 
-void openair0_write_reorder_clear_context(openair0_device_t *device)
-{
+void openair0_write_reorder_clear_context(openair0_device_t *device) {
   LOG_W(HW, "received write reorder clear context\n");
   re_order_t *ctx = &device->reOrder;
   if (!ctx->initDone)
@@ -379,9 +378,31 @@ void openair0_write_reorder_clear_context(openair0_device_t *device)
     free(ctx->ts_per_writer);
     ctx->ts_per_writer = NULL;
   }
+
   if (ctx->sample_timestamps) {
-    free(ctx->sample_timestamps);
+    munmap(ctx->sample_timestamps, ctx->sz * sizeof(openair0_timestamp_t));
     ctx->sample_timestamps = NULL;
   }
+
+  if (ctx->nb_writers) {
+    munmap(ctx->nb_writers, ctx->sz * sizeof(*ctx->nb_writers));
+    ctx->nb_writers = NULL;
+  }
+
+  if (ctx->ring) {
+    for (int i = 0; i < device->openair0_cfg->tx_num_channels; i++) {
+      if (ctx->ring[i]) {
+        munmap(ctx->ring[i], ctx->sz * sizeof(c16_t));
+      }
+    }
+    free(ctx->ring);
+    ctx->ring = NULL;
+  }
+
+  if (ctx->last_ts_per_ue) {
+      free(ctx->last_ts_per_ue);
+      ctx->last_ts_per_ue = NULL;
+  }
+
   pthread_mutex_unlock(&ctx->mutex_store);
 }
