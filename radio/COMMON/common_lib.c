@@ -177,11 +177,10 @@ void *reorder_consumer_thread(void *arg) {
 
   while (!args->stop) {
     pthread_mutex_lock(&ctx->mutex_store);
-    while (!args->stop && ctx->end <= ctx->nextTS) {
+    while (!args->stop && (!ctx->initDone || ctx->end <= ctx->nextTS)) {
       pthread_cond_wait(&ctx->cond_data_available, &ctx->mutex_store);
     }
-
-    if (args->stop) {
+    if (args->stop || !ctx->initDone) {
       pthread_mutex_unlock(&ctx->mutex_store);
       break;
     }
