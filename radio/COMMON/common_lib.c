@@ -103,6 +103,10 @@ int load_lib(openair0_device_t *device, openair0_config_t *openair0_cfg, eth_par
   config_get(config_get_if(), &device_params, 1, DEVICE_SECTION);
 
   int ret = load_module_shlib(devname, &shlib_fdesc, 1, NULL);
+  if (devname && devname != deflibname) {
+    free(devname);
+    devname = NULL;
+  }
   AssertFatal(ret >= 0, "Library %s couldn't be loaded\n", devname);
   return ((devfunc_t)shlib_fdesc.fptr)(device, openair0_cfg, eth_cfg);
 }
