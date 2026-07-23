@@ -107,17 +107,36 @@ int load_lib(openair0_device_t *device, openair0_config_t *openair0_cfg, eth_par
   return ((devfunc_t)shlib_fdesc.fptr)(device, openair0_cfg, eth_cfg);
 }
 
-void *create_ring(int sz_bytes)
-{
+void *create_ring(int sz_bytes) {
   AssertFatal(sz_bytes % PAGE_SIZE == 0, "must be a number of pages %d", sz_bytes);
   // get a temporary file fd
-  const int fd = fileno(tmpfile());
+  int fd = fileno(tmpfile());
+  if (fd == -1) {
+      AssertFatal(false, "tmpfile failed: %s\n", strerror(errno));
+  }
   // set it's size appropriately. We need exactly `sz` bytes as underlying memory
-  if (ftruncate(fd, sz_bytes))
-    AssertFatal(false, "errno: %s\n", strerror(errno));
+  if (ftruncate(fd, sz_bytes) != 0) {
+      close(fd);
+      AssertFatal(false, "ftruncate failed: %s\n", strerror(errno));
+  }
+
   void *ret = mmap(NULL, 2 * sz_bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  mmap(ret, sz_bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
-  mmap(ret + sz_bytes, sz_bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
+  if (ret == MAP_FAILED) {
+      close(fd);
+      AssertFatal(false, "mmap reserve failed: %s\n", strerror(errno));
+  }
+
+  if (mmap(ret, sz_bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0) != ret) {
+      munmap(ret, 2 * sz_bytes);
+      close(fd);
+      AssertFatal(false, "mmap first half failed: %s\n", strerror(errno));
+  }
+
+  if (mmap(ret + sz_bytes, sz_bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0) != ret + sz_bytes) {
+      munmap(ret, 2 * sz_bytes);
+      close(fd);
+      AssertFatal(false, "mmap second half failed: %s\n", strerror(errno));
+  }
   close(fd);
   return ret;
 }
