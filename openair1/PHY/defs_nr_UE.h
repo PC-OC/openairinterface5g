@@ -261,6 +261,8 @@ typedef struct {
   int sz;
   int grain;
   uint64_t last_ts;
+  bool initialized;
+  int refcount;
 } read_data_t;
 
 typedef struct {

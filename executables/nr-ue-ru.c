@@ -181,7 +181,8 @@ void nrue_set_ru_params(configmodule_interface_t *cfg)
                                          .time_source = get_softmodem_params()->timing_source,
                                          .tune_offset = get_softmodem_params()->tune_offset,
                                          .if_frequency = get_nrUE_params()->if_freq,
-                                         .if_freq_offset = get_nrUE_params()->if_freq_off};
+                                         .if_freq_offset = get_nrUE_params()->if_freq_off,
+                                         .rd = {.initialized = false}};
     return;
   }
 
@@ -211,7 +212,8 @@ void nrue_set_ru_params(configmodule_interface_t *cfg)
                              .time_source = config_get_processedint(cfg, param + time_src_idx),
                              .tune_offset = *gpd(param, sz, NRUE_RU_TUNE_OFFSET)->dblptr,
                              .if_frequency = *gpd(param, sz, NRUE_RU_IF_FREQUENCY)->u64ptr,
-                             .if_freq_offset = *gpd(param, sz, NRUE_RU_IF_FREQ_OFFSET)->iptr};
+                             .if_freq_offset = *gpd(param, sz, NRUE_RU_IF_FREQ_OFFSET)->iptr,
+                             .rd = {.initialized = false}};
     LOG_I(NR_PHY,
           "RU %d: nb_tx %d, nb_rx %d, att_tx %d, att_rx %d, max_rxgain %d, tune_offset %f, if_frequency %lu, if_freq_offset %d, "
           "sdr_addrs \"%s\", tx_subdev \"%s\", rx_subdev \"%s\", clock_source %d, time_source %d\n",
@@ -328,13 +330,53 @@ void nrue_ru_stop(void)
   }
 }
 
+static void nrue_ru_read_clear_context(nrUE_RU_params_t *ru) {
+  read_data_t *rd = &ru->rd;
+
+  pthread_mutex_lock(&rd->mread);
+
+  if (!rd->initialized) {
+    pthread_mutex_unlock(&rd->mread);
+    return;
+  }
+
+  rd->refcount--;
+
+  if (rd->refcount == 0) {
+    if (rd->rxbuf) {
+      for (int i = 0; i < ru->nb_rx; i++) {
+        if (rd->rxbuf[i]) {
+          munmap(rd->rxbuf[i], rd->sz * sizeof(c16_t));
+          rd->rxbuf[i] = NULL;
+        }
+      }
+      free(rd->rxbuf);
+      rd->rxbuf = NULL;
+    }
+
+    if (rd->last_timestamp) {
+      free(rd->last_timestamp);
+      rd->last_timestamp = NULL;
+    }
+
+    rd->last_ts = 0;
+    rd->initialized = false;
+  }
+
+  pthread_mutex_unlock(&rd->mread);
+}
+
 void nrue_ru_end(void)
 {
-  for (openair0_device_t *ru = nrue_rus.openair0_dev; ru < nrue_rus.openair0_dev + nrue_rus.count; ru++) {
-    if (ru->trx_get_stats_func)
-      ru->trx_get_stats_func(ru);
-    if (ru->trx_end_func)
-      ru->trx_end_func(ru);
+  for (int ru_id = 0; ru_id < nrue_rus.count; ru_id++) {
+    openair0_device_t *dev = &nrue_rus.openair0_dev[ru_id];
+
+    if (dev->trx_get_stats_func)
+        dev->trx_get_stats_func(dev);
+    if (dev->trx_end_func)
+        dev->trx_end_func(dev);
+
+    nrue_ru_read_clear_context(&nrue_rus.cfg[ru_id]);
   }
 }
 
@@ -404,7 +446,7 @@ int nrue_ru_read(PHY_VARS_NR_UE *UE, openair0_timestamp_t *ptimestamp, void **bu
   nrUE_RU_params_t *ru = nrue_rus.cfg + UE->rf_map.card;
   read_data_t *rd = &ru->rd;
 
-  if (ru->nb_clients > 1 && !rd->last_timestamp) {
+  if (ru->nb_clients > 1 && !rd->initialized) {
     int ret = pthread_mutex_init(&rd->mread, NULL);
     AssertFatal(!ret, "errno: %s\n", strerror(ret));
     ret = pthread_mutex_lock(&rd->mread);
@@ -416,10 +458,12 @@ int nrue_ru_read(PHY_VARS_NR_UE *UE, openair0_timestamp_t *ptimestamp, void **bu
     for (int i = 0; i < ru->nb_rx; i++) {
       rd->rxbuf[i] = create_ring(rd->sz * sizeof(c16_t));
     }
+    rd->initialized = true;
+    rd->refcount = 1;
     ret = pthread_mutex_unlock(&rd->mread);
-    AssertFatal(!ret, "errno: %s\n", strerror(ret));
     LOG_I(PHY, "multi read init done\n");
   }
+  rd->refcount++;
 
   int ret;
   if (ru->nb_clients > 1) {
@@ -430,6 +474,13 @@ int nrue_ru_read(PHY_VARS_NR_UE *UE, openair0_timestamp_t *ptimestamp, void **bu
     const int max_attempts = 1000; // 100ms timeout
     do {
       pthread_mutex_lock(&rd->mread);
+
+      if (!rd->last_timestamp || !rd->initialized) {
+          pthread_mutex_unlock(&rd->mread);
+          LOG_E(PHY, "[UE %d] Read context was cleared, aborting\n", this_ue);
+          return -1;
+      }
+
       uint64_t min = INT64_MAX;
       for (int i = 0; i < ru->nb_clients; i++)
         if (min > rd->last_timestamp[i]) min = rd->last_timestamp[i];
