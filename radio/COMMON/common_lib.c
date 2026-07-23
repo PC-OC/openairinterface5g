@@ -304,6 +304,9 @@ int openair0_write_reorder_common(nrue_ru_write_t nrue_ru_write,
       ctx->ts_per_writer = calloc(1, sizeof(*ctx->ts_per_writer));
     }
     ctx->initDone = true;
+    ctx->refcount = 1;
+  } else {
+    ctx->refcount++;
   }
 
   while (ctx->end - ctx->nextTS >= ctx->sz) {
@@ -356,53 +359,57 @@ void openair0_write_reorder_clear_context(openair0_device_t *device) {
   re_order_t *ctx = &device->reOrder;
   if (!ctx->initDone)
     return;
-  if (ctx->consumer_args) {
-    pthread_mutex_lock(&ctx->mutex_store);
-    ctx->consumer_args->stop = true;
-    pthread_cond_signal(&ctx->cond_data_available);
-    pthread_cond_signal(&ctx->cond_space_available);
-    pthread_mutex_unlock(&ctx->mutex_store);
 
-    if (ctx->consumer_thread != 0) {
-      pthread_join(ctx->consumer_thread, NULL);
-    }
-    free(ctx->consumer_args);
-    ctx->consumer_args = NULL;
-  }
-  pthread_mutex_lock(&ctx->mutex_write);
-  ctx->initDone = false;
-  pthread_mutex_unlock(&ctx->mutex_write);
 
-  pthread_mutex_lock(&ctx->mutex_store);
-  if (ctx->ts_per_writer) {
-    free(ctx->ts_per_writer);
-    ctx->ts_per_writer = NULL;
-  }
+  ctx->refcount--;
+  if(ctx->refcount == 0){
+    if (ctx->consumer_args) {
+      pthread_mutex_lock(&ctx->mutex_store);
+      ctx->consumer_args->stop = true;
+      pthread_cond_signal(&ctx->cond_data_available);
+      pthread_cond_signal(&ctx->cond_space_available);
+      pthread_mutex_unlock(&ctx->mutex_store);
 
-  if (ctx->sample_timestamps) {
-    munmap(ctx->sample_timestamps, ctx->sz * sizeof(openair0_timestamp_t));
-    ctx->sample_timestamps = NULL;
-  }
-
-  if (ctx->nb_writers) {
-    munmap(ctx->nb_writers, ctx->sz * sizeof(*ctx->nb_writers));
-    ctx->nb_writers = NULL;
-  }
-
-  if (ctx->ring) {
-    for (int i = 0; i < device->openair0_cfg->tx_num_channels; i++) {
-      if (ctx->ring[i]) {
-        munmap(ctx->ring[i], ctx->sz * sizeof(c16_t));
+      if (ctx->consumer_thread != 0) {
+        pthread_join(ctx->consumer_thread, NULL);
       }
+      free(ctx->consumer_args);
+      ctx->consumer_args = NULL;
     }
-    free(ctx->ring);
-    ctx->ring = NULL;
-  }
+    pthread_mutex_lock(&ctx->mutex_write);
+    ctx->initDone = false;
+    pthread_mutex_unlock(&ctx->mutex_write);
 
-  if (ctx->last_ts_per_ue) {
-      free(ctx->last_ts_per_ue);
-      ctx->last_ts_per_ue = NULL;
-  }
+    pthread_mutex_lock(&ctx->mutex_store);
+    if (ctx->ts_per_writer) {
+      free(ctx->ts_per_writer);
+      ctx->ts_per_writer = NULL;
+    }
 
+    if (ctx->sample_timestamps) {
+      munmap(ctx->sample_timestamps, ctx->sz * sizeof(openair0_timestamp_t));
+      ctx->sample_timestamps = NULL;
+    }
+
+    if (ctx->nb_writers) {
+      munmap(ctx->nb_writers, ctx->sz * sizeof(*ctx->nb_writers));
+      ctx->nb_writers = NULL;
+    }
+
+    if (ctx->ring) {
+      for (int i = 0; i < device->openair0_cfg->tx_num_channels; i++) {
+        if (ctx->ring[i]) {
+          munmap(ctx->ring[i], ctx->sz * sizeof(c16_t));
+        }
+      }
+      free(ctx->ring);
+      ctx->ring = NULL;
+    }
+
+    if (ctx->last_ts_per_ue) {
+        free(ctx->last_ts_per_ue);
+        ctx->last_ts_per_ue = NULL;
+    }
+  }
   pthread_mutex_unlock(&ctx->mutex_store);
 }

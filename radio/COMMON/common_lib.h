@@ -350,6 +350,7 @@ typedef struct {
   openair0_timestamp_t *sample_timestamps;
   openair0_timestamp_t *last_ts_per_ue;
   int max_nb_writers;
+  int refcount;
 } re_order_t;
 
 /*!\brief structure holds the parameters to configure RF devices */
