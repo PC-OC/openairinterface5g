@@ -368,16 +368,38 @@ void openair0_write_reorder_clear_context(openair0_device_t *device) {
     return;
   }
 
+
+  if (ctx->refcount <= 0) {
+    LOG_E(HW, "refcount already <= 0 in clear_context (current: %d), possible double call\n", ctx->refcount);
+    pthread_mutex_unlock(&ctx->mutex_store);
+    return;
+  }
   ctx->refcount--;
+
   if (ctx->refcount == 0) {
     pthread_t thread_to_join = ctx->consumer_thread;
     reorder_consumer_args_t *args_to_free = ctx->consumer_args;
 
-    if (ctx->consumer_args) {
-      ctx->consumer_args->stop = true;
+    if (args_to_free) {
+      args_to_free->stop = true;
       pthread_cond_signal(&ctx->cond_data_available);
       pthread_cond_signal(&ctx->cond_space_available);
     }
+
+    pthread_mutex_unlock(&ctx->mutex_store);
+
+    if (thread_to_join != 0) {
+        pthread_join(thread_to_join, NULL);
+    }
+
+    pthread_mutex_lock(&ctx->mutex_store);
+
+    if (ctx->refcount != 0) {
+        pthread_mutex_unlock(&ctx->mutex_store);
+        return;
+    }
+
+
     ctx->consumer_args = NULL;
     ctx->consumer_thread = 0;
     ctx->initDone = false;
@@ -409,13 +431,7 @@ void openair0_write_reorder_clear_context(openair0_device_t *device) {
     }
 
     pthread_mutex_unlock(&ctx->mutex_store);
-
-    if (thread_to_join != 0) {
-      pthread_join(thread_to_join, NULL);
-    }
-    if (args_to_free) {
-      free(args_to_free);
-    }
+    free(args_to_free);
   } else {
     pthread_mutex_unlock(&ctx->mutex_store);
   }
