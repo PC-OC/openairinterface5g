@@ -322,9 +322,10 @@ typedef struct {
 
 typedef struct PHY_VARS_NR_UE_s PHY_VARS_NR_UE;
 typedef int (*nrue_ru_write_t)(PHY_VARS_NR_UE *UE, openair0_timestamp_t timestamp, void **txp, int nsamps, int nbAnt, int flags);
+typedef struct re_order_s re_order_t;
 
-typedef struct {
-  struct re_order_s *ctx;
+typedef struct reorder_consumer_args_s {
+  re_order_t *ctx;
   openair0_device_t *device;
   nrue_ru_write_t nrue_ru_write;
   int nbAnt;
@@ -332,7 +333,7 @@ typedef struct {
 } reorder_consumer_args_t;
 
 #define WRITE_QUEUE_SZ 20
-typedef struct {
+typedef struct re_order_s {
   bool initDone;
   pthread_mutex_t mutex_write;
   pthread_mutex_t mutex_store;
