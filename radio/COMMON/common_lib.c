@@ -50,7 +50,7 @@ static int set_transport(openair0_device_t *device)
   char *dev_type = device->host_type == RAU_HOST ? "RAU" : "RRU";
   switch (device->transp_type) {
     case ETHERNET_TP:
-      LOG_I(HW, "[%s] has loaded ETHERNET trasport protocol.\n", dev_type);
+      LOG_I(HW, "[%s] has loaded ETHERNET transport protocol.\n", dev_type);
       return 0;
 
     case NONE_TP:
