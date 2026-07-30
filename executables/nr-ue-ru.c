@@ -426,6 +426,8 @@ int nrue_ru_read(PHY_VARS_NR_UE *UE, openair0_timestamp_t *ptimestamp, void **bu
     // if this client timestamp is above all other clients, let's wait another client make a read
     int this_ue = UE->Mod_id; // suppose Mod_id is 0..ru->nb_clients, so there is only one multi_client RU ...
     LOG_D(PHY, "read for ue %d of %d samples we wait this ue is the first\n", this_ue, nsamps);
+    int attempts = 0;
+    const int max_attempts = 1000;
     do {
       pthread_mutex_lock(&rd->mread);
       uint64_t min = INT64_MAX;
@@ -458,10 +460,13 @@ int nrue_ru_read(PHY_VARS_NR_UE *UE, openair0_timestamp_t *ptimestamp, void **bu
         int ret = pthread_mutex_unlock(&rd->mread);
         AssertFatal(!ret, "errno: %s\n", strerror(ret));
         return nsamps;
-      } else {
-        pthread_mutex_unlock(&rd->mread);
-        usleep(100);
       }
+      pthread_mutex_unlock(&rd->mread);
+      if (attempts++ > max_attempts) {
+        LOG_E(PHY, "Timeout waiting for read synchronization for UE %d\n", this_ue);
+        return -1;
+      }
+      usleep(100);
     } while (true);
   } else {
     openair0_timestamp_t tmp_timestamp;
