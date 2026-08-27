@@ -28,6 +28,7 @@
 #include "openair2/RRC/NR/rrc_gNB_du.h"
 #define TELNETSERVERCODE
 #include "telnetsrv.h"
+#include "rrc_defs.h"
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt(mSG, ##aRGS); return -1; } while (0)
 
@@ -123,6 +124,42 @@ int fetch_rnti(char *buf, telnet_printfunc_t prnt)
   }
   return rnti;
 }
+
+int force_rrc_reconfiguration_failure(char *buf, int debug, telnet_printfunc_t prnt)
+{
+  UNUSED(debug);
+  int rnti = fetch_rnti(buf, prnt);
+  if (rnti < 0)
+    ERROR_MSG_RET("could not identify UE\n");
+
+  LOG_I(NR_RRC, "[TELNET] Triggering reestablishment for RNTI %04x\n", rnti);
+
+  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_FORCE_RECONFIGURATION_FAILURE);
+  msg_p->ittiMsg.rrc_force_reconfiguration_failure.rnti = rnti;
+  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+
+  prnt("Triggered RRC reestablishment for UE RNTI %04x\n", rnti);
+  return 0;
+}
+
+
+int force_integrity_check_failure(char *buf, int debug, telnet_printfunc_t prnt)
+{
+  UNUSED(debug);
+  int rnti = fetch_rnti(buf, prnt);
+  if (rnti < 0)
+    ERROR_MSG_RET("could not identify UE\n");
+
+  LOG_I(NR_RRC, "[TELNET] Triggering reestablishment for RNTI %04x\n", rnti);
+
+  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_FORCE_INTEGRITY_CHECK_FAILURE);
+  msg_p->ittiMsg.rrc_force_integrity_check_failure.rnti = rnti;
+  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+
+  prnt("Triggered RRC reestablishment for UE RNTI %04x\n", rnti);
+  return 0;
+}
+
 
 int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
 {
@@ -479,6 +516,8 @@ static int set_pusch_target_snr(char *buf, int debug, telnet_printfunc_t prnt)
 static telnetshell_cmddef_t cicmds[] = {
     {"get_single_rnti", "", get_single_rnti},
     {"force_reestab", "[rnti(hex,opt)]", trigger_reestab},
+    {"force_rrc_reconfiguration_failure", "", force_rrc_reconfiguration_failure},
+    {"force_integrity_check_failure", "", force_integrity_check_failure},
     {"get_reestab_count", "[rnti(hex,opt)]", get_reestab_count},
     {"force_ue_release", "[rnti(hex,opt)]", force_ue_release},
     {"force_ul_failure", "[rnti(hex,opt)]", force_ul_failure},

@@ -306,7 +306,7 @@ static void rrc_deliver_dl_rrc_message(void *deliver_pdu_data, ue_id_t ue_id, in
   data->rrc->mac_rrc.dl_rrc_message_transfer(data->assoc_id, data->dl_rrc);
 }
 
-static void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc,
+void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc,
                                                   const gNB_RRC_UE_t *ue_p,
                                                   uint8_t srb_id,
                                                   const uint32_t message_id,
@@ -3884,6 +3884,14 @@ void *rrc_gnb_task(void *args_p)
 
       case RRC_GET_SINGLE_UE_RNTI:
         rrc_get_single_ue_rnti(msg_p, instance);
+        break;
+
+      case RRC_FORCE_RECONFIGURATION_FAILURE:
+        rrc_force_reconfiguration_failure(msg_p, instance);
+        break;
+
+      case RRC_FORCE_INTEGRITY_CHECK_FAILURE:
+        rrc_force_integrity_check_failure(msg_p, instance);
         break;
 
       case RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU:

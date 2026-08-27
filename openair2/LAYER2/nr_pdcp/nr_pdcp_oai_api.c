@@ -59,6 +59,25 @@ static uint64_t pdcp_optmask;
 
 static ngran_node_t node_type;
 
+/* Global callback for integrity failure notification (configured by RRC UE) */
+static void (*g_integrity_failure_callback)(void *data, ue_id_t ue_id, int rb_id) = NULL;
+static void *g_integrity_failure_callback_data = NULL;
+
+static void integrity_failure_callback_wrapper(void *data, ue_id_t ue_id, int rb_id)
+{
+  if (g_integrity_failure_callback) {
+    g_integrity_failure_callback(g_integrity_failure_callback_data, ue_id, rb_id);
+  }
+}
+
+void nr_pdcp_set_integrity_failure_callback(
+    void (*callback)(void *data, ue_id_t ue_id, int rb_id),
+    void *callback_data)
+{
+  g_integrity_failure_callback = callback;
+  g_integrity_failure_callback_data = callback_data;
+}
+
 nr_pdcp_entity_t *nr_pdcp_get_rb(nr_pdcp_ue_t *ue, int rb_id, bool srb_flag)
 {
   nr_pdcp_entity_t *rb;
@@ -550,6 +569,8 @@ void add_srb(int is_gnb,
                                   ue,
                                   NULL,
                                   ue,
+                                  integrity_failure_callback_wrapper,
+                                  ue,
                                   SHORT_SN_SIZE,
                                   t_Reordering,
                                   -1,
@@ -614,6 +635,8 @@ void nr_pdcp_add_drb(int is_gnb,
                                                     deliver_sdu_drb,
                                                     ue,
                                                     is_gnb ? deliver_pdu_drb_gnb : deliver_pdu_drb_ue,
+                                                    ue,
+                                                    integrity_failure_callback_wrapper,
                                                     ue,
                                                     sn_size_dl,
                                                     t_reordering,

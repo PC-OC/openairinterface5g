@@ -110,6 +110,8 @@ typedef struct nr_pdcp_entity_s {
   void (*deliver_pdu)(void *deliver_pdu_data, ue_id_t ue_id, int rb_id,
                       char *buf, int size, int sdu_id);
   void *deliver_pdu_data;
+  void (*integrity_failure_callback)(void *data, ue_id_t ue_id, int rb_id);
+  void *integrity_failure_callback_data;
 
   /* configuration variables */
   int rb_id;
@@ -194,6 +196,8 @@ nr_pdcp_entity_t *new_nr_pdcp_entity(
     void *deliver_sdu_data,
     void (*deliver_pdu)(void *deliver_pdu_data, ue_id_t ue_id, int rb_id, char *buf, int size, int sdu_id),
     void *deliver_pdu_data,
+    void (*integrity_failure_callback)(void *data, ue_id_t ue_id, int rb_id),
+    void *integrity_failure_callback_data,
     int sn_size,
     int t_reordering,
     int discard_timer,

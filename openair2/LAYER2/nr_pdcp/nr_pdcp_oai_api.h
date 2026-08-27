@@ -67,6 +67,10 @@ bool nr_pdcp_check_integrity_srb(ue_id_t ue_id,
                                  int msg_size,
                                  const nr_pdcp_integrity_data_t *msg_integrity);
 
+void nr_pdcp_set_integrity_failure_callback(
+    void (*callback)(void *data, ue_id_t ue_id, int rb_id),
+    void *callback_data);
+
 bool cu_f1u_data_req(protocol_ctxt_t  *ctxt_pP,
                      const srb_flag_t srb_flagP,
                      const rb_id_t rb_id,

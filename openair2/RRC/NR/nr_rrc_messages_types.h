@@ -17,6 +17,18 @@ typedef struct Rrc_get_single_ue_rnti_s {
 #define RRC_GET_SINGLE_UE_RNTI(mSGpTR) (mSGpTR)->ittiMsg.rrc_get_single_ue_rnti;
 #define RRC_GET_UE_CONTEXT_BY_UE_ID(mSGpTR) (mSGpTR)->ittiMsg.rrc_get_ue_context_by_ue_id;
 
+typedef struct Rrc_force_reconfiguration_failure_s {
+  rnti_t rnti;
+} Rrc_force_reconfiguration_failure;
+#define RRC_FORCE_RECONFIGURATION_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.rrc_force_reconfiguration_failure;
+
+typedef struct Rrc_force_integrity_check_failure_s {
+  rnti_t rnti;
+} Rrc_force_integrity_check_failure;
+#define RRC_FORCE_INTEGRITY_CHECK_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.Rrc_force_integrity_check_failure;
+
+
+
 struct rrc_gNB_ue_context_s;
 typedef struct Rrc_get_ue_context_by_rnti_any_du_s {
   rnti_t rnti;

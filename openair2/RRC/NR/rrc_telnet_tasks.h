@@ -22,5 +22,7 @@ void rrc_check_ue_context(MessageDef *msg_p, instance_t instance);
 void rrc_gnb_generate_rrcrelease(MessageDef *msg_p, instance_t instance);
 void rrc_gnb_generate_rrcrelease_all(MessageDef *msg_p, instance_t instance);
 void rrc_gnb_trigger_ue_context_release_req(MessageDef *msg_p, instance_t instance);
+void rrc_force_reconfiguration_failure(MessageDef *msg_p, instance_t instance);
+void rrc_force_integrity_check_failure(MessageDef *msg_p, instance_t instance);
 
 #endif /* RRC_TELNET_TASKS_H_ */

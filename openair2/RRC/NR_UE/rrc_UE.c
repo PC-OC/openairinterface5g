@@ -26,6 +26,14 @@
 #include "rrc_defs.h"
 #include "rrc_proto.h"
 #include "verify_RRC.h"
+
+// Local definitions to avoid conflict with nr_rrc_proto.h
+#ifndef SRB1
+#define SRB1 1
+#endif
+#ifndef SRB2
+#define SRB2 2
+#endif
 #include "L2_interface_ue.h"
 #include "LAYER2/NR_MAC_UE/mac_proto.h"
 
@@ -1656,9 +1664,14 @@ static void nr_rrc_ue_process_measConfig(rrcPerNB_t *rrc,
   }
 }
 
-static void nr_rrc_ue_process_rrcReconfiguration(NR_UE_RRC_INST_t *rrc, int gNB_index, NR_RRCReconfiguration_t *reconfiguration)
+void nr_rrc_ue_process_rrcReconfiguration(NR_UE_RRC_INST_t *rrc, int gNB_index, NR_RRCReconfiguration_t *reconfiguration)
 {
   rrcPerNB_t *rrcNB = rrc->perNB + gNB_index;
+
+  if (reconfiguration == NULL) {
+    handle_rlf_detection(rrc);
+    return;
+  }
 
   switch (reconfiguration->criticalExtensions.present) {
     case NR_RRCReconfiguration__criticalExtensions_PR_rrcReconfiguration: {
@@ -1702,7 +1715,12 @@ static void nr_rrc_ue_process_rrcReconfiguration(NR_UE_RRC_INST_t *rrc, int gNB_
             xer_fprint(stdout, &asn_DEF_NR_CellGroupConfig, (const void *) cellGroupConfig);
 
           bool ret = nr_rrc_cellgroup_configuration(rrc, cellGroupConfig, gNB_index, dedicatedsib1);
-          AssertFatal(ret, "CellGroup has wrong configuration for the UE. Unexpected\n");
+          if (!ret) {
+            LOG_E(NR_RRC, "CellGroup has wrong configuration for the UE\n");
+            SEQUENCE_free(&asn_DEF_NR_CellGroupConfig, (void *)cellGroupConfig, 1);
+            handle_rlf_detection(rrc);
+            return;
+          }
           AssertFatal(!IS_SA_MODE(get_softmodem_params()), "secondaryCellGroup only used in NSA for now\n");
           nr_mac_rrc_message_t rrc_msg = {0};
           rrc_msg.payload_type = NR_MAC_RRC_CONFIG_CG;
@@ -1780,7 +1798,7 @@ void process_nsa_message(NR_UE_RRC_INST_t *rrc, nsa_message_t nsa_message_type, 
       ASN_STRUCT_FREE(asn_DEF_NR_RadioBearerConfig, RadioBearerConfig);
     }
     break;
-    
+
     default:
       AssertFatal(1==0,"Unknown message %d\n",nsa_message_type);
       break;
@@ -1806,6 +1824,7 @@ NR_UE_RRC_INST_t* nr_rrc_init_ue(char* uecap_file, int instance_id, int num_ant_
   NR_UE_rrc_inst[instance_id] = calloc_or_fail(1, sizeof(NR_UE_RRC_INST_t));
   NR_UE_RRC_INST_t *rrc = NR_UE_rrc_inst[instance_id];
   rrc->ue_id = instance_id;
+  nr_pdcp_set_integrity_failure_callback(nr_rrc_ue_handle_pdcp_integrity_failure, rrc);
   // fill UE-NR-Capability @ UE-CapabilityRAT-Container here.
   rrc->selected_plmn_identity = 1;
   rrc->ra_trigger = RA_NOT_RUNNING;
@@ -2027,7 +2046,7 @@ static void nr_rrc_ue_decode_NR_BCCH_BCH_Message(NR_UE_RRC_INST_t *rrc,
   }
   if (LOG_DEBUGFLAG(DEBUG_ASN1))
     xer_fprint(stdout, &asn_DEF_NR_BCCH_BCH_Message, (void *)bcch_message);
-    
+
   // Actions following cell selection while T311 is running
   NR_UE_Timers_Constants_t *timers = &rrc->timers_and_constants;
   if (nr_timer_is_active(&timers->T311)) {
@@ -2722,12 +2741,17 @@ static void nr_rrc_ue_process_rrcReestablishment(NR_UE_RRC_INST_t *rrc,
   // using the previously configured algorithm and the K_RRCint key
   bool integrity_pass = nr_pdcp_check_integrity_srb(rrc->ue_id, srb_id, msg, msg_size, msg_integrity);
   // if the integrity protection check of the RRCReestablishment message fails
-  // perform the actions upon going to RRC_IDLE as specified in 5.3.11
-  // with release cause 'RRC connection failure', upon which the procedure ends
+  // According to TS 38.331, integrity failure on SRB1/SRB2 shall trigger RRC Reestablishment
+  // if AS security is activated, otherwise go to IDLE
   if (!integrity_pass) {
-    RRCLOG_W("Integrity of RRCReestablishment failed, going to IDLE\n");
-    NR_Release_Cause_t release_cause = RRC_CONNECTION_FAILURE;
-    nr_rrc_going_to_IDLE(rrc, release_cause, NULL);
+    if (rrc->as_security_activated) {
+      RRCLOG_W("Integrity of RRCReestablishment failed, initiating reestablishment\n");
+      nr_rrc_initiate_rrcReestablishment(rrc, NR_ReestablishmentCause_otherFailure);
+    } else {
+      RRCLOG_W("Integrity of RRCReestablishment failed, going to IDLE\n");
+      NR_Release_Cause_t release_cause = RRC_CONNECTION_FAILURE;
+      nr_rrc_going_to_IDLE(rrc, release_cause, NULL);
+    }
     return;
   }
 
@@ -3500,7 +3524,24 @@ void nr_rrc_ue_process_sidelink_radioResourceConfig(NR_SetupRelease_SL_ConfigDed
   }
 }
 
-static void nr_rrc_initiate_rrcReestablishment(NR_UE_RRC_INST_t *rrc, NR_ReestablishmentCause_t cause)
+void nr_rrc_ue_handle_pdcp_integrity_failure(void *rrc_ptr, ue_id_t ue_id, int rb_id)
+{
+  NR_UE_RRC_INST_t *rrc = (NR_UE_RRC_INST_t *)rrc_ptr;
+  if (!rrc || rrc->ue_id != ue_id) {
+    LOG_E(NR_RRC, "PDCP integrity failure: UE context not found for ue_id %ld\n", ue_id);
+    return;
+  }
+
+  // According to TS 38.331, integrity failure on SRB1/SRB2 shall trigger RRC Reestablishment
+  if (rb_id == SRB1 || rb_id == SRB2) {
+    LOG_W(NR_RRC, "PDCP integrity check failed on SRB%d, initiating RRC reestablishment\n", rb_id);
+    nr_rrc_initiate_rrcReestablishment(rrc, NR_ReestablishmentCause_otherFailure);
+  } else {
+    LOG_W(NR_RRC, "PDCP integrity check failed on RB%d (not SRB1/SRB2), discarding\n", rb_id);
+  }
+}
+
+void nr_rrc_initiate_rrcReestablishment(NR_UE_RRC_INST_t *rrc, NR_ReestablishmentCause_t cause)
 {
   rrc->reestablishment_cause = cause;
   rrc->reestab_source_pci = rrc->phyCellID;

@@ -49,6 +49,8 @@ MESSAGE_DEF(GNB_SAT_POSITION_UPDATE, MESSAGE_PRIORITY_MED, gnb_sat_position_upda
 MESSAGE_DEF(NR_RRC_MAC_MEAS_DATA_IND,    MESSAGE_PRIORITY_MED_PLUS, NRRrcMacMeasDataInd,           nr_rrc_mac_meas_data_ind)
 
 MESSAGE_DEF(RRC_GET_SINGLE_UE_RNTI, MESSAGE_PRIORITY_MED_PLUS, Rrc_get_single_ue_rnti, rrc_get_single_ue_rnti)
+MESSAGE_DEF(RRC_FORCE_RECONFIGURATION_FAILURE, MESSAGE_PRIORITY_MED_PLUS, Rrc_force_reconfiguration_failure, rrc_force_reconfiguration_failure)
+MESSAGE_DEF(RRC_FORCE_INTEGRITY_CHECK_FAILURE, MESSAGE_PRIORITY_MED_PLUS, Rrc_force_integrity_check_failure, rrc_force_integrity_check_failure)
 MESSAGE_DEF(RRC_GET_UE_CONTEXT_BY_UE_ID, MESSAGE_PRIORITY_MED_PLUS, Rrc_get_single_ue_rnti, rrc_get_ue_context_by_ue_id)
 MESSAGE_DEF(RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU,
             MESSAGE_PRIORITY_MED_PLUS,

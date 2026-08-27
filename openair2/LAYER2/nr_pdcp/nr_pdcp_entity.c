@@ -13,6 +13,7 @@
 #include "nr_pdcp_integrity_nia2.h"
 #include "nr_pdcp_integrity_nia1.h"
 #include "nr_pdcp_sdu.h"
+#include "nr_pdcp_ue_manager.h"
 
 #include "LOG/log.h"
 
@@ -130,9 +131,14 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
                       buffer, size - integrity_size,
                       entity->rb_id, rcvd_count, entity->is_gnb ? 0 : 1);
     if (memcmp(integrity, buffer + size - integrity_size, PDCP_INTEGRITY_SIZE) != 0) {
-      LOG_E(PDCP, "discard NR PDU, integrity failed\n");
+      LOG_E(PDCP, "discard NR PDU, integrity failed on rb_id=%d\n", entity->rb_id);
       entity->stats.rxpdu_dd_pkts++;
       entity->stats.rxpdu_dd_bytes += size;
+
+      if (entity->integrity_failure_callback && !entity->is_gnb && entity->integrity_failure_callback_data) {
+        nr_pdcp_ue_t *ue = (nr_pdcp_ue_t *)entity->integrity_failure_callback_data;
+        entity->integrity_failure_callback(entity->integrity_failure_callback_data, ue->ue_id, entity->rb_id);
+      }
 
       return;
     }
@@ -693,6 +699,8 @@ nr_pdcp_entity_t *new_nr_pdcp_entity(
     void *deliver_sdu_data,
     void (*deliver_pdu)(void *deliver_pdu_data, ue_id_t ue_id, int rb_id, char *buf, int size, int sdu_id),
     void *deliver_pdu_data,
+    void (*integrity_failure_callback)(void *data, ue_id_t ue_id, int rb_id),
+    void *integrity_failure_callback_data,
     int sn_size,
     int t_reordering,
     int discard_timer,
@@ -729,13 +737,16 @@ nr_pdcp_entity_t *new_nr_pdcp_entity(
       ret->reestablish_entity = nr_pdcp_entity_reestablish_srb;
       break;
   }
-  
+
   ret->get_stats = nr_pdcp_entity_get_stats;
   ret->deliver_sdu = deliver_sdu;
   ret->deliver_sdu_data = deliver_sdu_data;
 
   ret->deliver_pdu = deliver_pdu;
   ret->deliver_pdu_data = deliver_pdu_data;
+
+  ret->integrity_failure_callback = integrity_failure_callback;
+  ret->integrity_failure_callback_data = integrity_failure_callback_data;
 
   ret->rb_id         = rb_id;
   ret->pdusession_id = pdusession_id;
