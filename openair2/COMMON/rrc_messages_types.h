@@ -493,6 +493,12 @@ typedef struct {
   } payload;
 } nr_mac_rrc_message_t;
 
+typedef struct {
+  uint64_t ue_id;
+  int xid;
+  int state;
+} nr_rrc_nrdc_timeout_t;
+
 typedef struct Rrc_get_active_ue_list_s{
     uint32_t num_ues;
     uint32_t rnti_list[MAX_MOBILES_PER_GNB]; // Define a safe upper bound

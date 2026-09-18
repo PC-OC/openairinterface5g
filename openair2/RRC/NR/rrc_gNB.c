@@ -4086,6 +4086,7 @@ void *rrc_gnb_task(void *args_p)
         }
         msg_p->ittiMsg.rrc_active_ue_list.num_ues = count_ue;
         itti_send_msg_to_task(TASK_TELNET, 0, msg_p);
+        msg_p = NULL;
         break;
 
       case RRC_GET_NODE_INFO:
@@ -4093,6 +4094,7 @@ void *rrc_gnb_task(void *args_p)
         msg_p->ittiMsg.rrc_node_info.node_id = RC.nrrrc[instance]->node_id;
         msg_p->ittiMsg.rrc_node_info.node_name = RC.nrrrc[instance]->node_name;
         itti_send_msg_to_task(TASK_TELNET, 0, msg_p);
+        msg_p = NULL;
         break;
 
       case RRC_GET_CUUP_CELLS_LIST:
@@ -4111,6 +4113,7 @@ void *rrc_gnb_task(void *args_p)
         }
         msg_p->ittiMsg.rrc_cuup_cells_list.cell_count = count_cell;
         itti_send_msg_to_task(TASK_TELNET, 0, msg_p);
+        msg_p = NULL;
         break;
 
       case RRC_GET_SINGLE_UE_RNTI:
@@ -4162,9 +4165,11 @@ void *rrc_gnb_task(void *args_p)
         break;
     }
 
-    result = itti_free(ITTI_MSG_ORIGIN_ID(msg_p), msg_p);
-    AssertFatal(result == EXIT_SUCCESS, "Failed to free memory (%d)!\n", result);
-    msg_p = NULL;
+    if (msg_p != NULL) {
+      result = itti_free(ITTI_MSG_ORIGIN_ID(msg_p), msg_p);
+      AssertFatal(result == EXIT_SUCCESS, "Failed to free memory (%d)!\n", result);
+      msg_p = NULL;
+    }
   }
 }
 

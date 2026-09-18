@@ -2435,26 +2435,17 @@ gNB_RRC_INST *RCconfig_NRRRC()
       LOG_I(GNB_APP,"F1AP: gNB_CU_id[%d] %d\n", k, rrc->node_id);
       rrc->node_name = strdup(*(GNBParamList.paramarray[0][GNB_GNB_NAME_IDX].strptr));
       LOG_I(GNB_APP,"F1AP: gNB_CU_name[%d] %s\n", k, rrc->node_name);
-      rrc->eth_params_s.my_addr                  = strdup(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr));
-      rrc->eth_params_s.remote_addr              = strdup(*(GNBParamList.paramarray[i][GNB_REMOTE_S_ADDRESS_IDX].strptr));
-      rrc->eth_params_s.my_portc                 = *(GNBParamList.paramarray[i][GNB_LOCAL_S_PORTC_IDX].uptr);
-      rrc->eth_params_s.remote_portc             = *(GNBParamList.paramarray[i][GNB_REMOTE_S_PORTC_IDX].uptr);
-      rrc->eth_params_s.my_portd                 = *(GNBParamList.paramarray[i][GNB_LOCAL_S_PORTD_IDX].uptr);
-      rrc->eth_params_s.remote_portd             = *(GNBParamList.paramarray[i][GNB_REMOTE_S_PORTD_IDX].uptr);
-      rrc->eth_params_s.transp_preference        = ETH_UDP_MODE;
-    }
-
-    if (strcmp(*(GNBParamList.paramarray[i][GNB_TRANSPORT_S_PREFERENCE_IDX].strptr), "local_mac") == 0) {
-
-    } else if (strcmp(*(GNBParamList.paramarray[i][GNB_TRANSPORT_S_PREFERENCE_IDX].strptr), "cudu") == 0) {
-      rrc->eth_params_s.my_addr                  = strdup(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr));
-      rrc->eth_params_s.remote_addr              = strdup(*(GNBParamList.paramarray[i][GNB_REMOTE_S_ADDRESS_IDX].strptr));
-      rrc->eth_params_s.my_portc                 = *(GNBParamList.paramarray[i][GNB_LOCAL_S_PORTC_IDX].uptr);
-      rrc->eth_params_s.remote_portc             = *(GNBParamList.paramarray[i][GNB_REMOTE_S_PORTC_IDX].uptr);
-      rrc->eth_params_s.my_portd                 = *(GNBParamList.paramarray[i][GNB_LOCAL_S_PORTD_IDX].uptr);
-      rrc->eth_params_s.remote_portd             = *(GNBParamList.paramarray[i][GNB_REMOTE_S_PORTD_IDX].uptr);
-      rrc->eth_params_s.transp_preference        = ETH_UDP_MODE;
-    } else { // other midhaul
+      f1ap_cu_conf_t *c = calloc_or_fail(1, sizeof(*c));
+      c->type = rrc->node_type;
+      c->bind_addr = strdup(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr));
+      c->local_f1u_port = *GNBParamList.paramarray[i][GNB_LOCAL_S_PORTD_IDX].uptr;
+      c->remote_f1u_port = *GNBParamList.paramarray[i][GNB_REMOTE_S_PORTD_IDX].uptr;
+      // GNB_REMOTE_S_ADDRESS_IDX not used
+      // GNB_LOCAL_S_PORTC_IDX not used
+      // GNB_REMOTE_S_PORTC_IDX not used
+      ittiTask_parms_t p = {.args_to_start_routine = c};
+      int rc = itti_create_task(TASK_CU_F1, F1AP_CU_task, &p);
+      AssertFatal(rc == 0, "Create task for F1AP CU failed\n");
     }
 
     // search if in active list

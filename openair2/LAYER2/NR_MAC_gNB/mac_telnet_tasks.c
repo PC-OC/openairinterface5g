@@ -2,9 +2,26 @@
  * SPDX-License-Identifier: LicenseRef-CSSL-1.0
  */
 
+#include <stdint.h>
 #include "mac_proto.h"
 #include "common/utils/ocp_itti/intertask_interface.h"
 #include "../nr_rlc/nr_rlc_oai_api.h"
+
+#define NR_NCI_BITS 36
+
+static inline uint32_t extract_cell_id(uint64_t nci, uint32_t gnb_id) {
+  for (int gnb_bits = 22; gnb_bits <= 32; gnb_bits++) {
+    int cell_bits = NR_NCI_BITS - gnb_bits;
+
+    uint32_t candidate_gnb_id = (uint32_t)(nci >> cell_bits);
+
+    if (candidate_gnb_id == gnb_id) {
+      return (uint32_t)(nci & ((1ULL << cell_bits) - 1));
+    }
+  }
+
+  return UINT32_MAX;
+}
 
 extern int stop_L1(module_id_t gnb_id);
 
@@ -281,6 +298,18 @@ void mac_stop_modem_handler(MessageDef *msg_p, instance_t instance)
   itti_send_msg_to_task(TASK_TELNET, 0, resp_p);
 }
 
+typedef struct b {
+  long int dl;
+  long int ul;
+  long int unres_ul;
+  long int unres_dl;
+} b_t;
+
+typedef struct ue_stat {
+  rnti_t rnti;
+  b_t thr;
+} ue_stat_t;
+
 void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
 {
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Handler started\n");
@@ -315,6 +344,13 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
 
   const f1ap_setup_req_t *sr = mac->f1_config.setup_req;
   const f1ap_served_cell_info_t *cell_info = &sr->cell[0].info;
+
+  int sum_thpunresvolul = 0;
+  int sum_thpvolul = 0;
+  int sum_thpunresvoldl = 0;
+  int sum_thpvoldl = 0;
+  int sum_rlcpacketdl = 0;
+  int sum_rlcpacketdropratedl = 0;
 
   stats->gNB_DU_id = sr->gNB_DU_id;
   strncpy(stats->gNB_DU_name, sr->gNB_DU_name, sizeof(stats->gNB_DU_name) - 1);
@@ -365,8 +401,11 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
   stats->sst = cell_info->nssai[0].sst;
   stats->band = band;
 
-  LOG_D(NR_MAC, "MAC_GET_O1_STATS: Cell config read (pci=%lu, tac=%lu, band=%d, scs=%d, bw_mhz=%lu)\n",
-        stats->pci, stats->tac, stats->band, stats->scs, stats->bw_mhz);
+  /* Compute cell_local_id from NR Cell ID and gNB ID */
+  stats->cell_local_id = extract_cell_id(cell_info->nr_cellid, mac->f1_config.gnb_id);
+
+  LOG_D(NR_MAC, "MAC_GET_O1_STATS: Cell config read (pci=%lu, tac=%lu, band=%d, scs=%d, bw_mhz=%lu, cell_local_id=%u)\n",
+        stats->pci, stats->tac, stats->band, stats->scs, stats->bw_mhz, stats->cell_local_id);
 
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Reading BWP config\n");
   const NR_BWP_t *initialDL = &scc->downlinkConfigCommon->initialDownlinkBWP->genericParameters;
@@ -388,6 +427,18 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
 
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Collecting UE RLC stats\n");
   stats->num_ues = 0;
+  clock_gettime(CLOCK_MONOTONIC, &stats->tp_now);
+  ue_stat_t ue_stat[MAX_MOBILES_PER_GNB] = {0};
+  static long last_total_dl[MAX_MOBILES_PER_GNB] = {0};
+  static long last_total_ul[MAX_MOBILES_PER_GNB] = {0};
+  static long last_total_unres_dl[MAX_MOBILES_PER_GNB] = {0};
+  static long last_total_unres_ul[MAX_MOBILES_PER_GNB] = {0};
+  
+  size_t diff_msec = (stats->tp_now.tv_sec - stats->tp_last.tv_sec) * 1000 +
+                    (stats->tp_now.tv_nsec - stats->tp_last.tv_nsec) / 1000000;
+  if (diff_msec == 0) diff_msec = 1; /* Avoid division by zero */
+  stats->tp_last = stats->tp_now;
+  
   UE_iterator((NR_UE_info_t **)mac->UE_info.connected_ue_list, it) {
     if (stats->num_ues >= MAX_MOBILES_PER_GNB) {
       LOG_D(NR_MAC, "MAC_GET_O1_STATS: Max UEs reached (%d)\n", MAX_MOBILES_PER_GNB);
@@ -397,6 +448,26 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
     LOG_D(NR_MAC, "MAC_GET_O1_STATS: Processing UE with RNTI %x, calling nr_rlc_get_statistics\n", it->rnti);
     nr_rlc_statistics_t rlc = {0};
     nr_rlc_get_statistics(it->rnti, 0, 1, &rlc); // srb_flag=0, rb_id=1
+    sum_rlcpacketdropratedl += rlc.rxsdu_dd_pkts;
+    sum_rlcpacketdl += rlc.rxsdu_pkts;
+    b_t *lt = &(b_t){
+        .dl = last_total_dl[stats->num_ues],
+        .ul = last_total_ul[stats->num_ues],
+        .unres_dl = last_total_unres_dl[stats->num_ues],
+        .unres_ul = last_total_unres_ul[stats->num_ues]
+    };
+    ue_stat_t *ue_s = &ue_stat[stats->num_ues];
+    ue_s->rnti = it->rnti;
+    // static var last_total: we might have old data, larger than what
+    // reports RLC, leading to a huge number -> cut off to zero
+    if (lt->dl > rlc.txpdu_bytes)
+      lt->dl = rlc.txpdu_bytes;
+    if (lt->ul > rlc.rxpdu_bytes)
+      lt->ul = rlc.rxpdu_bytes;
+    if (lt->unres_ul > rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes)
+      lt->unres_ul = rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes;
+    if (lt->unres_dl > rlc.txpdu_bytes + rlc.txpdu_dd_bytes)
+      lt->unres_dl = rlc.txpdu_bytes + rlc.txpdu_dd_bytes;
     LOG_D(NR_MAC, "MAC_GET_O1_STATS: nr_rlc_get_statistics returned for RNTI %x\n", it->rnti);
 
     stats->ue_rlc_stats[stats->num_ues].rnti = it->rnti;
@@ -404,13 +475,25 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
     stats->ue_rlc_stats[stats->num_ues].rxpdu_bytes = rlc.rxpdu_bytes;
     LOG_D(NR_MAC, "MAC_GET_O1_STATS: UE %d: RNTI=%x, txpdu_bytes=%llu, rxpdu_bytes=%llu\n",
           stats->num_ues, it->rnti, (unsigned long long)rlc.txpdu_bytes, (unsigned long long)rlc.rxpdu_bytes);
+    ue_s->thr.dl = (rlc.txpdu_bytes - lt->dl) * 8 / diff_msec;
+    ue_s->thr.ul = (rlc.rxpdu_bytes - lt->ul) * 8 / diff_msec;
+    ue_s->thr.unres_ul = (rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes - lt->unres_ul) * 8 / diff_msec;
+    ue_s->thr.unres_dl = (rlc.txpdu_bytes + rlc.txpdu_dd_bytes - lt->unres_dl) * 8 / diff_msec;
+    lt->dl = rlc.txpdu_bytes;
+    lt->ul = rlc.rxpdu_bytes;
+    lt->unres_ul = rlc.rxpdu_bytes + rlc.rxpdu_dd_bytes;
+    lt->unres_dl = rlc.txpdu_bytes + rlc.txpdu_dd_bytes;
+    sum_thpunresvoldl = lt->unres_dl;
+    sum_thpvoldl += lt->dl;
+    sum_thpunresvolul = lt->unres_ul;
+    sum_thpvolul += lt->ul;
     stats->num_ues++;
   }
+  stats->RlcPacketDropRateDl = sum_rlcpacketdl == 0 ? 1 : 1000000*(sum_rlcpacketdropratedl/sum_rlcpacketdl);
+  stats->unres_dl = sum_thpunresvoldl+sum_thpvoldl > 0 ? 100*sum_thpunresvoldl/(sum_thpunresvoldl+sum_thpvoldl) : 0;
+  stats->unres_ul = sum_thpunresvolul+sum_thpvolul > 0 ? 100*sum_thpunresvolul/(sum_thpunresvolul+sum_thpvolul) : 0;
   NR_SCHED_UNLOCK(&mac->sched_lock);
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Processed %d UEs\n", stats->num_ues);
-
-  clock_gettime(CLOCK_MONOTONIC, &stats->tp_now);
-  LOG_D(NR_MAC, "MAC_GET_O1_STATS: Timestamp set\n");
 
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Sending response to TASK_TELNET\n");
 

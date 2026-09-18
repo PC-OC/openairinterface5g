@@ -137,9 +137,18 @@ typedef struct Mac_get_o1_stats_s {
     int rnti;
     long txpdu_bytes;
     long rxpdu_bytes;
+    long rxsdu_dd_pkts;
+    long rxsdu_pkts;
   } ue_rlc_stats[MAX_MOBILES_PER_GNB];
 
+  int RlcPacketDropRateDl;
+  double unres_ul;
+  double unres_dl;
+  int load;
+  uint32_t cell_local_id;
+
   struct timespec tp_now;
+  struct timespec tp_last;
 } Mac_get_o1_stats;
 #define MAC_GET_O1_STATS(mSGpTR) (mSGpTR)->ittiMsg.mac_get_o1_stats
 
