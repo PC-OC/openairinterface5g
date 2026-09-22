@@ -136,6 +136,7 @@ static void ngap_gNB_register_amf(ngap_gNB_instance_t *instance_p,
   ngap_amf_data_p = calloc(1, sizeof(*ngap_amf_data_p));
   DevAssert(ngap_amf_data_p != NULL);
   ngap_amf_data_p->cnx_id                = ngap_gNB_fetch_add_global_cnx_id();
+  ngap_amf_data_p->t_reconnect = -1;
   sctp_new_association_req_p->ulp_cnx_id = ngap_amf_data_p->cnx_id;
   ngap_amf_data_p->assoc_id          = -1;
   ngap_amf_data_p->broadcast_plmn_num = broadcast_plmn_num;
@@ -194,7 +195,7 @@ void ngap_gNB_handle_register_gNB(instance_t instance, ngap_register_gnb_req_t *
     new_instance->gNB_id           = ngap_register_gNB->gNB_id;
     new_instance->cell_type        = ngap_register_gNB->cell_type;
     new_instance->tac              = ngap_register_gNB->tac;
-    
+
     memcpy(&new_instance->gNB_ng_ip,
        &ngap_register_gNB->gnb_ip_address,
        sizeof(ngap_register_gNB->gnb_ip_address));
@@ -832,7 +833,7 @@ static int ngap_gNB_generate_ng_setup_request(
     asn1cSeqAdd(&ie->value.choice.SupportedTAList.list, ta);
   }
   asn1cSeqAdd(&out->protocolIEs.list, ie);
-  
+
   /* mandatory */
   ie = calloc_or_fail(1, sizeof(NGAP_NGSetupRequestIEs_t));
   ie->id = NGAP_ProtocolIE_ID_id_DefaultPagingDRX;
