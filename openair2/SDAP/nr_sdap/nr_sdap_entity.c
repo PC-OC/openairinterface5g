@@ -347,7 +347,7 @@ nr_sdap_rx_entity(nr_sdap_entity_t *entity, int drb_id, int is_gnb, int pdusessi
       if(sdap_hdr->RDI == SDAP_REFLECTIVE_MAPPING) {
         LOG_D(SDAP, "RX - Performing Reflective Mapping\n");
         /*
-         * TS 37.324 5.3 QoS flow to DRB Mapping 
+         * TS 37.324 5.3 QoS flow to DRB Mapping
          * 5.3.2 Reflective mapping
          * If there is no stored QoS flow to DRB mapping rule for the QoS flow and a default DRB is configured.
          */
@@ -358,9 +358,9 @@ nr_sdap_rx_entity(nr_sdap_entity_t *entity, int drb_id, int is_gnb, int pdusessi
         }
 
         /*
-         * TS 37.324 5.3 QoS flow to DRB mapping 
+         * TS 37.324 5.3 QoS flow to DRB mapping
          * 5.3.2 Reflective mapping
-         * if the stored QoS flow to DRB mapping rule for the QoS flow 
+         * if the stored QoS flow to DRB mapping rule for the QoS flow
          * is different from the QoS flow to DRB mapping of the DL SDAP data PDU
          * and
          * the DRB according to the stored QoS flow to DRB mapping rule is configured by RRC
@@ -686,6 +686,7 @@ nr_sdap_entity_t *nr_sdap_get_entity(ue_id_t ue_id, int pdusession_id)
   if (sdap_entity->tun.ue_id == ue_id && sdap_entity->tun.pdusession_id == pdusession_id)
     return sdap_entity;
 
+  LOG_W(SDAP, " Could not find SDAP entity: entity list empty (ue_id=%ld pdu_session_id=%d)\n", ue_id, pdusession_id);
   return NULL;
 }
 
