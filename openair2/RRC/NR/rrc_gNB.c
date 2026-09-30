@@ -2956,7 +2956,7 @@ static void rrc_CU_process_ue_context_release_complete(MessageDef *msg_p)
      * otherwise, it might be CU that requested release on a DU during normal
      * operation (i.e, handover) */
     rrc_gNB_send_NGAP_UE_CONTEXT_RELEASE_COMPLETE(0, UE->rrc_ue_id, &UE->pduSessions);
-    rrc_remove_ue(RC.nrrrc[0], ue_context_p);
+    rrc_remove_ue(rrc, ue_context_p);
   }
 }
 
@@ -3863,6 +3863,7 @@ void *rrc_gnb_task(void *args_p)
     itti_receive_msg(TASK_RRC_GNB, &msg_p);
     const char *msg_name_p = ITTI_MSG_NAME(msg_p);
     instance = ITTI_MSG_DESTINATION_INSTANCE(msg_p);
+    gNB_RRC_INST *rrc = RC.nrrrc[instance];
     LOG_D(NR_RRC,
           "RRC GNB Task Received %s for instance %ld from task %s\n",
           ITTI_MSG_NAME(msg_p),
@@ -3881,8 +3882,8 @@ void *rrc_gnb_task(void *args_p)
 
       case TIMER_HAS_EXPIRED:
         if (TIMER_HAS_EXPIRED(msg_p).timer_id == stats_timer_id) {
-          nr_rrc_sample_conn_count(RC.nrrrc[0]);
-          if (!write_rrc_stats(RC.nrrrc[0]))
+          nr_rrc_sample_conn_count(rrc);
+          if (!write_rrc_stats(rrc))
             timer_remove(stats_timer_id);
         } else {
           itti_send_msg_to_task(TASK_RRC_GNB, 0, TIMER_HAS_EXPIRED(msg_p).arg); /* see rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ() */
@@ -3890,7 +3891,7 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case F1AP_INITIAL_UL_RRC_MESSAGE:
-        AssertFatal(NODE_IS_CU(RC.nrrrc[instance]->node_type) || NODE_IS_MONOLITHIC(RC.nrrrc[instance]->node_type),
+        AssertFatal(NODE_IS_CU(rrc->node_type) || NODE_IS_MONOLITHIC(rrc->node_type),
                     "should not receive F1AP_INITIAL_UL_RRC_MESSAGE, need call by CU!\n");
         rrc_gNB_process_initial_ul_rrc_message(msg_p->ittiMsgHeader.originInstance, &F1AP_INITIAL_UL_RRC_MESSAGE(msg_p));
         free_initial_ul_rrc_message_transfer(&F1AP_INITIAL_UL_RRC_MESSAGE(msg_p));
@@ -3899,7 +3900,7 @@ void *rrc_gnb_task(void *args_p)
       /* Messages from PDCP */
       /* From DU -> CU */
       case F1AP_UL_RRC_MESSAGE:
-        rrc_gNB_decode_dcch(RC.nrrrc[instance], &F1AP_UL_RRC_MESSAGE(msg_p));
+        rrc_gNB_decode_dcch(rrc, &F1AP_UL_RRC_MESSAGE(msg_p));
         free_ul_rrc_message_transfer(&F1AP_UL_RRC_MESSAGE(msg_p));
         break;
 
@@ -3919,7 +3920,7 @@ void *rrc_gnb_task(void *args_p)
 
       case NGAP_PDUSESSION_RELEASE_COMMAND:
         if (!rrc_delay_transaction(instance, msg_p))
-          rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(&NGAP_PDUSESSION_RELEASE_COMMAND(msg_p), RC.nrrrc[instance]);
+          rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(&NGAP_PDUSESSION_RELEASE_COMMAND(msg_p), rrc);
         break;
 
       case NGAP_DL_RAN_STATUS_TRANSFER:
@@ -3928,7 +3929,7 @@ void *rrc_gnb_task(void *args_p)
 
       /* Messages from F1AP task */
       case F1AP_SETUP_REQ:
-        AssertFatal(!NODE_IS_DU(RC.nrrrc[instance]->node_type), "should not receive F1AP_SETUP_REQUEST in DU!\n");
+        AssertFatal(!NODE_IS_DU(rrc->node_type), "should not receive F1AP_SETUP_REQUEST in DU!\n");
         rrc_gNB_process_f1_setup_req(&F1AP_SETUP_REQ(msg_p), msg_p->ittiMsgHeader.originInstance);
         free_f1ap_setup_request(&F1AP_SETUP_REQ(msg_p));
         break;
@@ -3958,17 +3959,17 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case F1AP_LOST_CONNECTION:
-        rrc_CU_process_f1_lost_connection(RC.nrrrc[0], &F1AP_LOST_CONNECTION(msg_p), msg_p->ittiMsgHeader.originInstance);
+        rrc_CU_process_f1_lost_connection(rrc, &F1AP_LOST_CONNECTION(msg_p), msg_p->ittiMsgHeader.originInstance);
         break;
 
       case F1AP_GNB_DU_CONFIGURATION_UPDATE:
-        AssertFatal(!NODE_IS_DU(RC.nrrrc[instance]->node_type), "should not receive F1AP_SETUP_REQUEST in DU!\n");
+        AssertFatal(!NODE_IS_DU(rrc->node_type), "should not receive F1AP_SETUP_REQUEST in DU!\n");
         rrc_gNB_process_f1_du_configuration_update(&F1AP_GNB_DU_CONFIGURATION_UPDATE(msg_p), msg_p->ittiMsgHeader.originInstance);
         free_f1ap_du_configuration_update(&F1AP_GNB_DU_CONFIGURATION_UPDATE(msg_p));
         break;
 
       case F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE:
-        AssertFatal(!NODE_IS_DU(RC.nrrrc[instance]->node_type),
+        AssertFatal(!NODE_IS_DU(rrc->node_type),
                     "should not receive F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE in DU!\n");
         LOG_E(NR_RRC, "Handling of F1AP_GNB_CU_CONFIGURATION_UPDATE_ACKNOWLEDGE not implemented\n");
         break;
@@ -4040,25 +4041,25 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case E1AP_LOST_CONNECTION: /* CUCP */
-        rrc_gNB_process_e1_lost_connection(RC.nrrrc[0], msg_p->ittiMsgHeader.originInstance);
+        rrc_gNB_process_e1_lost_connection(rrc, msg_p->ittiMsgHeader.originInstance);
         break;
 
       case NGAP_PAGING_IND:
-        rrc_gNB_process_PAGING_IND(RC.nrrrc[instance], instance, &NGAP_PAGING_IND(msg_p));
+        rrc_gNB_process_PAGING_IND(rrc, instance, &NGAP_PAGING_IND(msg_p));
         break;
 
       case NGAP_HANDOVER_REQUEST:
-        rrc_gNB_process_Handover_Request(RC.nrrrc[instance], &NGAP_HANDOVER_REQUEST(msg_p));
+        rrc_gNB_process_Handover_Request(rrc, &NGAP_HANDOVER_REQUEST(msg_p));
         rrc_gNB_free_Handover_Request(&NGAP_HANDOVER_REQUEST(msg_p)); // Free transfered NG message
         break;
 
       case NGAP_HANDOVER_COMMAND:
-        rrc_gNB_process_HandoverCommand(RC.nrrrc[instance], &NGAP_HANDOVER_COMMAND(msg_p));
+        rrc_gNB_process_HandoverCommand(rrc, &NGAP_HANDOVER_COMMAND(msg_p));
         rrc_gNB_free_Handover_Command(&NGAP_HANDOVER_COMMAND(msg_p)); // Free transfered NG message
         break;
 
       case NRPPA_TRP_INFORMATION_REQ:
-        rrc_gNB_process_trp_information_request(RC.nrrrc[instance], &NRPPA_TRP_INFORMATION_REQ(msg_p));
+        rrc_gNB_process_trp_information_request(rrc, &NRPPA_TRP_INFORMATION_REQ(msg_p));
         free_nrppa_trp_information_request(&NRPPA_TRP_INFORMATION_REQ(msg_p));
         break;
 
@@ -4072,7 +4073,7 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case NRPPA_POSITIONING_INFORMATION_REQ:
-        rrc_gNB_process_positioning_information_request(RC.nrrrc[instance], &NRPPA_POSITIONING_INFORMATION_REQ(msg_p));
+        rrc_gNB_process_positioning_information_request(rrc, &NRPPA_POSITIONING_INFORMATION_REQ(msg_p));
         break;
 
       case F1AP_POSITIONING_INFORMATION_RESP:
@@ -4081,7 +4082,7 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case NRPPA_POSITIONING_ACTIVATION_REQ:
-        rrc_gNB_process_positioning_activation_request(RC.nrrrc[instance], &NRPPA_POSITIONING_ACTIVATION_REQ(msg_p));
+        rrc_gNB_process_positioning_activation_request(rrc, &NRPPA_POSITIONING_ACTIVATION_REQ(msg_p));
         free_nrppa_positioning_activation_request(&NRPPA_POSITIONING_ACTIVATION_REQ(msg_p));
         break;
 
@@ -4091,7 +4092,7 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case NRPPA_MEASUREMENT_REQ:
-        rrc_gNB_process_positioning_measurement_request(RC.nrrrc[instance], &NRPPA_MEASUREMENT_REQ(msg_p));
+        rrc_gNB_process_positioning_measurement_request(rrc, &NRPPA_MEASUREMENT_REQ(msg_p));
         free_nrppa_measurement_request(&NRPPA_MEASUREMENT_REQ(msg_p));
         break;
 
@@ -4105,16 +4106,16 @@ void *rrc_gnb_task(void *args_p)
         break;
 
       case NR_RRC_NRDC_TIMEOUT:
-        rrc_gnb_nrdc_timeout(RC.nrrrc[instance], &NR_RRC_NRDC_TIMEOUT(msg_p));
+        rrc_gnb_nrdc_timeout(rrc, &NR_RRC_NRDC_TIMEOUT(msg_p));
         break;
 
       /* Messages from XNAP task */
       case XNAP_SETUP_IND:
-        rrc_add_xn_candidate(RC.nrrrc[instance], XNAP_SETUP_IND(msg_p).gnb_id, XNAP_SETUP_IND(msg_p).assoc_id);
+        rrc_add_xn_candidate(rrc, XNAP_SETUP_IND(msg_p).gnb_id, XNAP_SETUP_IND(msg_p).assoc_id);
         break;
 
       case XNAP_PEER_SHUTDOWN_IND:
-        rrc_remove_xn_candidate(RC.nrrrc[instance], XNAP_PEER_SHUTDOWN_IND(msg_p).gnb_id);
+        rrc_remove_xn_candidate(rrc, XNAP_PEER_SHUTDOWN_IND(msg_p).gnb_id);
         break;
 
       default:
