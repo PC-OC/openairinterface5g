@@ -601,7 +601,7 @@ int main(int argc, char **argv)
       print_perf=1;
       cpu_meas_enabled = 1;
       break;
-      
+
     case 'I':
       max_ldpc_iterations = atoi(optarg);
       break;
@@ -773,7 +773,6 @@ int main(int argc, char **argv)
   RC.gNB = (PHY_VARS_gNB**) malloc(sizeof(PHY_VARS_gNB *));
   RC.gNB[0] = (PHY_VARS_gNB*) malloc(sizeof(PHY_VARS_gNB ));
   memset(RC.gNB[0],0,sizeof(PHY_VARS_gNB));
-
   gNB = RC.gNB[0];
   gNB->ofdm_offset_divisor = UINT_MAX;
   gNB->phase_comp = true; // we need to perform phase compensation, otherwise everything will fail
@@ -1268,7 +1267,7 @@ int main(int argc, char **argv)
 #ifdef CHANNEL_SIM_CUDA
         if (use_cuda) {
 #if defined(USE_UNIFIED_MEMORY)
-#if defined(CUDA_VERSION) && CUDA_VERSION >= 13000 
+#if defined(CUDA_VERSION) && CUDA_VERSION >= 13000
           struct cudaMemLocation deviceId;
           deviceId.type = cudaMemLocationTypeDevice;
           cudaGetDevice(&deviceId.id);
@@ -1278,7 +1277,7 @@ int main(int argc, char **argv)
           cudaGetDevice(&deviceId);
           cudaMemPrefetchAsync(d_tx_sig, n_tx * padded_slot_length * sizeof(float) * 2, deviceId, 0);
 #endif
-#endif		
+#endif
           start_meas(&pipeline_stats);
           random_channel(gNB2UE, 0);
           int num_links = gNB2UE->nb_tx * gNB2UE->nb_rx;
@@ -1410,13 +1409,13 @@ int main(int argc, char **argv)
 
 	estimated_output_bit[i] = (UE->phy_sim_dlsch_b[i/8] & (1 << (i & 7))) >> (i & 7);
 	test_input_bit[i]       = (gNB_dlsch->b[i / 8] & (1 << (i & 7))) >> (i & 7); // Further correct for multiple segments
-	
+
 	if (estimated_output_bit[i] != test_input_bit[i]) {
 	  if(errors_bit == 0)
 	    LOG_D(PHY,"First bit in error in decoding = %d\n",i);
 	  errors_bit++;
 	}
-	
+
       }
       ////////////////////////////////////////////////////////////
 

@@ -179,7 +179,7 @@ static void rx_rf(RU_t *ru, int *frame, int *slot)
   //  OAI uses timestamps in sample time stored in int64_t, but it will fit in double precision for many years to come.
   double gps_sec = ((double)ts) / cfg->sample_rate;
 
-  // in fact the following line is the same as long as the timestamp_rx is synchronized to GPS. 
+  // in fact the following line is the same as long as the timestamp_rx is synchronized to GPS.
   proc->frame_rx    = (proc->timestamp_rx / (fp->samples_per_subframe*10))&1023;
   proc->tti_rx = get_slot_from_timestamp(proc->timestamp_rx, fp);
   // synchronize first reception to frame 0 subframe 0
@@ -424,7 +424,7 @@ void fill_rf_config(RU_t *ru, char *rf_config_file)
     }
 
     cfg->tx_gain[i] = ru->att_tx;
-    LOG_I(PHY, "Channel %d: setting tx_gain offset %.0f, tx_freq %.0f Hz\n", 
+    LOG_I(PHY, "Channel %d: setting tx_gain offset %.0f, tx_freq %.0f Hz\n",
           i, cfg->tx_gain[i],cfg->tx_freq[i]);
   }
 

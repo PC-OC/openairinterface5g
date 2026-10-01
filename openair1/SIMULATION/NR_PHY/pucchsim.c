@@ -742,7 +742,7 @@ int main(int argc, char **argv)
         pucch_pdu.time_domain_occ_idx = timeDomainOCC;
 
         start_meas(&gNB->pucch01_proc_rx);
-        nr_decode_pucch1(gNB, rxdataF, nr_frame_tx, nr_slot_tx, &uci_pdu, &pucch_pdu);      
+        nr_decode_pucch1(gNB, rxdataF, nr_frame_tx, nr_slot_tx, &uci_pdu, &pucch_pdu);
         stop_meas(&gNB->pucch01_proc_rx);
         // harq value 0 -> pass
         nfapi_nr_harq_t *harq_list = uci_pdu.harq.harq_list;
