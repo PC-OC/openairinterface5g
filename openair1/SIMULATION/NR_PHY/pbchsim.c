@@ -11,7 +11,7 @@
 #include "common/config/config_userapi.h"
 #include "common/utils/LOG/log.h"
 #include "common/utils/load_module_shlib.h"
-#include "common/ran_context.h" 
+#include "common/ran_context.h"
 #include "common/utils/nr/nr_common.h"
 #include "PHY/types.h"
 #include "PHY/defs_nr_common.h"
@@ -419,7 +419,7 @@ int main(int argc, char **argv)
   int IFO;
   if(eps!=0.0){
 	printf("Introducing a CFO of %lf relative to SCS of %d kHz\n",eps,(int)(scs/1000));
-	if (eps>0)	
+	if (eps>0)
   	  IFO=(int)(eps+0.5);
 	else
 	  IFO=(int)(eps-0.5);
@@ -465,7 +465,7 @@ int main(int argc, char **argv)
   //phy_init_nr_top(UE); //called from init_nr_ue_signal
   if (run_initial_sync==1)  UE->is_synchronized = 0;
   else                      UE->is_synchronized = 1;
-                      
+
   if(eps!=0.0)
 	UE->UE_fo_compensation = 1; // if a frequency offset is set then perform fo estimation and compensation
 
@@ -556,14 +556,14 @@ int main(int argc, char **argv)
   if (gNB->frame_parms.nb_antennas_tx>1)
     LOG_M("txsig1.m","txs1", txdata[1],frame_length_complex_samples,1,1);
 
-  if (output_fd) 
+  if (output_fd)
     fwrite(txdata[0],sizeof(int32_t),frame_length_complex_samples,output_fd);
 
   /*int txlev = signal_energy(&txdata[0][5*frame_parms->ofdm_symbol_size + 4*frame_parms->nb_prefix_samples + frame_parms->nb_prefix_samples0],
 		  	  	  	  	    frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples);
   printf("txlev %d (%f)\n",txlev,10*log10(txlev));*/
 
-  
+
   for (SNR = snr0; SNR < snr1 && !stop; SNR+=.2) {
 
     n_errors = 0;
@@ -580,7 +580,7 @@ int main(int argc, char **argv)
 
       // multipath channel
       //multipath_channel(gNB2UE,s_re,s_im,r_re,r_im,frame_length_complex_samples,0);
-      
+
       //AWGN
       sigma2_dB = 20*log10((double)AMP/4)-SNR;
       sigma2 = pow(10,sigma2_dB/10);
@@ -719,7 +719,7 @@ int main(int argc, char **argv)
       ret_test = 0;
       break;
     }
-      
+
     if (n_trials==1)
       break;
 

@@ -418,7 +418,7 @@ int main(int argc, char **argv)
   uint8_t length_dmrs = 2;
   uint8_t N_PRB_oh;
   uint16_t N_RE_prime,code_rate;
-  unsigned char mod_order;  
+  unsigned char mod_order;
   uint8_t rvidx = 0;
   int UE_id = 0;
 
@@ -500,7 +500,7 @@ int main(int argc, char **argv)
     nr_ulsch_pre_encoding(UE, ulsch_ue, 0, 0, &G, 1, ULSCH_ids);
     nr_ulsch_encoding(UE, ulsch_ue, 0, 0, &G, 1, ULSCH_ids);
   }
-  
+
   printf("\n");
 
   ///////////
@@ -531,7 +531,7 @@ int main(int argc, char **argv)
           modulated_input[i] = 1.0;        ///sqrt(2);  //QPSK
         else
           modulated_input[i] = -1.0;        ///sqrt(2);
-  
+
         //if (i<16) printf("modulated_input[%d] = %d\n",i,modulated_input[i]);
 
 #if 1

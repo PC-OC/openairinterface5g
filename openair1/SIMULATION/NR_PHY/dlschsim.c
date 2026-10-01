@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 
 	        case 'M':
       			SSB_positions = atoi(optarg);
-			break;		    
+			break;
 
 		case 'N':
 			Nid_cell = atoi(optarg);

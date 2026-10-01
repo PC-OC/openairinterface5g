@@ -207,8 +207,8 @@ static nr_rlc_statistics_t get_rlc_stats_per_drb(const rnti_t rnti, const int rb
 
   // Activate average sojourn time at the RLC buffer for specific DRB
   nr_rlc_activate_avg_time_to_tx(rnti, rb_id+3, 1);
-  
-  return rlc;  
+
+  return rlc;
 }
 
 /* 3GPP TS 28.522 - section 5.1.3.3.3
@@ -220,7 +220,7 @@ static meas_record_lst_t fill_DRB_RlcSduDelayDl(__attribute__((unused)) const la
                                                 __attribute__((unused))e2_node_level_stats_t* node_stats)
 {
   meas_record_lst_t meas_record = {0};
-  
+
   // Get RLC stats per DRB
   const int rb_id = 1;  // at the moment, only 1 DRB is supported
   nr_rlc_statistics_t rlc = get_rlc_stats_per_drb(ue_info.ue->rnti, rb_id);
@@ -243,7 +243,7 @@ static meas_record_lst_t fill_DRB_UEThpDl(__attribute__((unused)) const label_in
                                           __attribute__((unused))e2_node_level_stats_t* node_stats)
 {
   meas_record_lst_t meas_record = {0};
-  
+
   const int rb_id = 1;  // at the moment, only 1 DRB is supported
   nr_rlc_statistics_t rlc = get_rlc_stats_per_drb(ue_info.ue->rnti, rb_id);
   meas_record.value = REAL_MEAS_VALUE;
@@ -265,7 +265,7 @@ static meas_record_lst_t fill_DRB_UEThpUl(__attribute__((unused)) const label_in
                                           __attribute__((unused))e2_node_level_stats_t* node_stats)
 {
   meas_record_lst_t meas_record = {0};
-  
+
   // Get RLC stats per DRB
   const int rb_id = 1;  // at the moment, only 1 DRB is supported
   nr_rlc_statistics_t rlc = get_rlc_stats_per_drb(ue_info.ue->rnti, rb_id);
@@ -275,7 +275,7 @@ static meas_record_lst_t fill_DRB_UEThpUl(__attribute__((unused)) const label_in
   // Calculate UL Thp
   meas_record.real_val = (double)(rlc.rxpdu_bytes - last_rlc_pdu_total_bytes[ue_idx].ul)*8/gran_period_ms;  // [kbps]
   last_rlc_pdu_total_bytes[ue_idx].ul = rlc.rxpdu_bytes;
-  
+
   return meas_record;
 }
 
@@ -288,7 +288,7 @@ static meas_record_lst_t fill_RRU_PrbTotDl(__attribute__((unused)) const label_i
                                            e2_node_level_stats_t* node_stats)
 {
   meas_record_lst_t meas_record = {0};
-  
+
   meas_record.value = INTEGER_MEAS_VALUE;
 
   // Get the number of DL PRBs
@@ -393,15 +393,15 @@ static kv_measure_t lst_measure[] = {
   {.key = "MR.NRScSSSINR",       .value = fill_MR_NRScSSSINR },
   {.key = "RRC.ConnMean",        .value = fill_RRC_ConnMean },
 #if defined (NGRAN_GNB_DU)
-  {.key = "DRB.RlcSduDelayDl", .value =  fill_DRB_RlcSduDelayDl }, 
-  {.key = "DRB.UEThpDl", .value =  fill_DRB_UEThpDl }, 
-  {.key = "DRB.UEThpUl", .value =  fill_DRB_UEThpUl }, 
-  {.key = "RRU.PrbTotDl", .value =  fill_RRU_PrbTotDl }, 
-  {.key = "RRU.PrbTotUl", .value =  fill_RRU_PrbTotUl }, 
+  {.key = "DRB.RlcSduDelayDl", .value =  fill_DRB_RlcSduDelayDl },
+  {.key = "DRB.UEThpDl", .value =  fill_DRB_UEThpDl },
+  {.key = "DRB.UEThpUl", .value =  fill_DRB_UEThpUl },
+  {.key = "RRU.PrbTotDl", .value =  fill_RRU_PrbTotDl },
+  {.key = "RRU.PrbTotUl", .value =  fill_RRU_PrbTotUl },
   {.key = "CARR.PDSCHMCSDist", .value = fill_CARR_PDSCHMCSDist },
   {.key = "CARR.PUSCHMCSDist", .value = fill_CARR_PUSCHMCSDist },
 #endif
-}; 
+};
 
 void init_kpm_subs_data(void)
 {

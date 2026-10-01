@@ -928,7 +928,7 @@ int main(int argc, char *argv[])
   NR_UE_MAC_INST_t* UE_mac = nr_l2_init_ue(0, mu);
 
   ue_init_config_request(UE_mac, get_slots_per_frame_from_scs(mu));
-  
+
   UE->if_inst = nr_ue_if_module_init(0);
   UE->if_inst->scheduled_response = nr_ue_scheduled_response;
   UE->if_inst->phy_config_request = nr_ue_phy_config_request;
@@ -966,7 +966,7 @@ int main(int argc, char *argv[])
   uint8_t ptrs_mcs3 = 10;
   uint16_t n_rb0 = 25;
   uint16_t n_rb1 = 75;
-  
+
   uint16_t pdu_bit_map = PUSCH_PDU_BITMAP_PUSCH_DATA; // | PUSCH_PDU_BITMAP_PUSCH_PTRS;
   uint8_t crc_status = 0;
 
@@ -1021,7 +1021,7 @@ int main(int argc, char *argv[])
 
   nb_re_dmrs = nb_re_dmrs * num_dmrs_cdm_grps_no_data;
   unsigned int TBS = nr_compute_tbs(mod_order, code_rate, nb_rb, nb_symb_sch, nb_re_dmrs * number_dmrs_symbols, 0, 0, precod_nbr_layers);
-  
+
   printf("[ULSIM]: length_dmrs: %u, l_prime_mask: %u	number_dmrs_symbols: %u, mapping_type: %u add_pos: %d \n",
          length_dmrs,
          l_prime_mask,
@@ -1492,7 +1492,7 @@ int main(int argc, char *argv[])
             const int padding_len = UE2gNB->channel_length - 1;
             const int padded_slot_length = slot_length + padding_len;
             cudaMemPrefetchAsync(d_tx_sig, n_tx * padded_slot_length * 2 * sizeof(float), deviceId, 0, 0);
-#else		  
+#else
             int deviceId;
             cudaGetDevice(&deviceId);
             const int padding_len = UE2gNB->channel_length - 1;
@@ -1746,7 +1746,7 @@ int main(int argc, char *argv[])
         n_false_positive++;
         if (n_trials==1)
 	  printf("\x1B[31m""[frame %d][trial %d]\tnumber of errors in decoding     = %u\n" "\x1B[0m", frame, trial, errors_decoding);
-      } 
+      }
       roundStats += ((float)round);
       if (!crc_status)
         effRate += ((double)TBS) / (double)round;
@@ -1771,7 +1771,7 @@ int main(int argc, char *argv[])
 
     roundStats/=((float)n_trials);
     effRate /= (double)n_trials;
-    
+
 
     // -------csv file-------
 
@@ -1828,7 +1828,7 @@ int main(int argc, char *argv[])
     dump_pusch_stats(fd,gNB);
     fclose(fd);
 
-    if (print_perf==1) 
+    if (print_perf==1)
     {
       printf("UE TX\n");
       for (int i = PHY_PROC_TX; i <= OFDM_MOD_STATS; i++) {
