@@ -11,6 +11,7 @@
 #include "PHY/types.h"
 #include "PHY/defs_eNB.h"
 #include "PHY/defs_UE.h"
+#include "PHY/defs_RU.h"
 #include "PHY/phy_extern.h"
 #include "phy_init.h"
 #include "PHY/LTE_REFSIG/lte_refsig.h"
@@ -56,6 +57,7 @@ void lte_param_init(PHY_VARS_eNB **eNBp,
   memset((void *)eNB,0,sizeof(PHY_VARS_eNB));
   memset((void *)UE,0,sizeof(PHY_VARS_UE));
   memset((void *)ru,0,sizeof(RU_t));
+  pthread_mutex_init(&ru->mutex, NULL);
   ru->eNB_list[0] = eNB;
   eNB->RU_list[0] = ru;
   ru->num_eNB=1;

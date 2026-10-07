@@ -21,6 +21,7 @@
 #include "radio/ETHERNET/ethernet_lib.h"
 
 #include "PHY/defs_nr_common.h"
+#include "PHY/defs_RU.h"
 #include "PHY/phy_extern.h"
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/INIT/nr_phy_init.h"
@@ -914,6 +915,7 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
   LOG_D(PHY,"Process RUs RC.nb_RU:%d\n",RC.nb_RU);
 
   for (int ru_id = 0; ru_id < RC.nb_RU; ru_id++) {
+    RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
     LOG_D(PHY,"Process RC.ru[%d]\n",ru_id);
     RU_t *ru = RC.ru[ru_id];
     ru->rf_config_file = rf_config_file;
@@ -978,6 +980,7 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
       // FEP TX result FIFO
       ru->respfeptx = malloc(sizeof(notifiedFIFO_t));
       initNotifiedFIFO(ru->respfeptx);
+      RU_PHY_UNLOCK(&ru->mutex);
     }
   } // for ru_id
 
@@ -986,8 +989,10 @@ void init_NR_RU(configmodule_interface_t *cfg, char *rf_config_file)
 
 void start_NR_RU()
 {
+  RU_PHY_LOCK(&RC.ru[0]->mutex);
   RU_t *ru = RC.ru[0];
   threadCreate(&ru->proc.pthread_FH, ru_thread, ru, "ru_thread", ru->ru_thread_core, OAI_PRIORITY_RT_MAX);
+  RU_PHY_UNLOCK(&ru->mutex);
 }
 
 void stop_RU(int nb_ru) {
@@ -1013,6 +1018,7 @@ static void NRRCconfig_RU(configmodule_interface_t *cfg)
 
   for (int j = 0; j < RC.nb_RU; j++) {
     RU_t *ru = RC.ru[j] = calloc(1, sizeof(*RC.ru[j]));
+    pthread_mutex_init(&RC.ru[j]->mutex, NULL);
     ru->idx = j;
     ru->nr_frame_parms = calloc(1, sizeof(*ru->nr_frame_parms));
     paramdef_t *param = RUParamList.paramarray[j];

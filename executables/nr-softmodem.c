@@ -338,14 +338,17 @@ void terminate_task(task_id_t task_id, module_id_t mod_id) {
 
 int stop_L1(module_id_t gnb_id)
 {
+  RU_PHY_LOCK(&RC.ru[gnb_id]->mutex);
   RU_t *ru = RC.ru[gnb_id];
   if (!ru) {
     LOG_W(GNB_APP, "no RU configured\n");
+    RU_PHY_UNLOCK(&RC.ru[gnb_id]->mutex);
     return -1;
   }
 
   if (!RC.gNB[gnb_id]->configured) {
     LOG_W(GNB_APP, "L1 already stopped\n");
+    RU_PHY_UNLOCK(&RC.ru[gnb_id]->mutex);
     return -1;
   }
 
@@ -375,6 +378,8 @@ int stop_L1(module_id_t gnb_id)
 
   if (RC.nb_RU > 0)
     stop_RU(RC.nb_RU);
+
+  RU_PHY_UNLOCK(&ru->mutex);
 
   /* release memory used by the RU/gNB threads (incomplete), after all
    * threads have been stopped (they partially use the same memory) */
@@ -604,10 +609,12 @@ int main( int argc, char **argv ) {
     init_NR_RU(uniqCfg, get_softmodem_params()->rf_config_file);
 
     for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
+      RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
       RC.ru[ru_id]->rf_map.card=0;
       RC.ru[ru_id]->rf_map.chain = CC_id;
       if (ru_id==0) sl_ahead = RC.ru[ru_id]->sl_ahead;	
       else AssertFatal(RC.ru[ru_id]->sl_ahead != RC.ru[0]->sl_ahead,"RU %d has different sl_ahead %d than RU 0 %d\n",ru_id,RC.ru[ru_id]->sl_ahead,RC.ru[0]->sl_ahead);
+      RU_PHY_UNLOCK(&RC.ru[ru_id]->mutex);
     }
     
   }
@@ -659,6 +666,7 @@ int main( int argc, char **argv ) {
     scopeParms_t p;
     p.argc = &argc;
     p.argv = argv;
+    RU_PHY_LOCK(&RC.ru[0]->mutex);
     p.gNB = RC.gNB[0];
     p.ru = RC.ru[0];
     if (IS_SOFTMODEM_IMSCOPE_ENABLED) {
@@ -669,6 +677,7 @@ int main( int argc, char **argv ) {
     if (IS_SOFTMODEM_IMSCOPE_RECORD_ENABLED) {
       load_module_shlib("imscope_record", NULL, 0, &p);
     }
+    RU_PHY_UNLOCK(&RC.ru[0]->mutex);
   }
 
   if (RC.nb_nr_L1_inst > 0) {
@@ -680,11 +689,13 @@ int main( int argc, char **argv ) {
       scopeParms_t p;
       p.argc = &argc;
       p.argv = argv;
+      RU_PHY_LOCK(&RC.ru[0]->mutex);
       p.gNB = RC.gNB[0];
       p.ru = RC.ru[0];
       if (IS_SOFTMODEM_DOSCOPE) {
         load_softscope("nr", &p);
       }
+      RU_PHY_UNLOCK(&RC.ru[0]->mutex);
     }
 
     if (NFAPI_MODE != NFAPI_MODE_PNF && NFAPI_MODE != NFAPI_MODE_VNF && NFAPI_MODE != NFAPI_MODE_AERIAL) {

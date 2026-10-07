@@ -12,6 +12,7 @@
 #include "PHY/types.h"
 #include "PHY/defs_eNB.h"
 #include "PHY/defs_UE.h"
+#include "PHY/defs_RU.h"
 #include "PHY/phy_vars.h"
 
 #include "SCHED/sched_eNB.h"
@@ -1030,7 +1031,9 @@ int main(int argc, char **argv) {
   RC.eNB[0] = (PHY_VARS_eNB **)malloc(sizeof(PHY_VARS_eNB *));
   RC.ru = (RU_t **)malloc(sizeof(RC.ru));
   RC.eNB[0][0] = eNB;
+  RU_PHY_LOCK(&ru->mutex);
   RC.ru[0] = ru;
+  RU_PHY_UNLOCK(&ru->mutex);
   printf("lte_param_init done\n");
 
   if ((transmission_mode==1) || (transmission_mode==7)) {

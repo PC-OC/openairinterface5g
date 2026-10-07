@@ -6,12 +6,14 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #include "common/cmake_defs.h"
 #include "SIMULATION/TOOLS/sim.h"
 #include "SIMULATION/RF/rf.h"
 #include "PHY/phy_extern_ue.h"
 #include "common/ran_context.h"
+#include "openair1/PHY/defs_RU.h"
 
 #define RF
 
@@ -71,14 +73,17 @@ void do_DL_sig(sim_t *sim,
   pthread_mutex_lock(&sim->RU_output_mutex[UE_id]);
   
   if (sim->RU_output_mask[UE_id] == 0) {  //  This is the first eNodeB for this UE, clear the buffer
+    RU_PHY_LOCK(&RC.ru[0]->mutex);
     for (aa=0; aa<nb_antennas_rx; aa++) {
       memset((void*)sim->r_re_DL[UE_id][aa],0,(RC.ru[0]->frame_parms->samples_per_tti)*sizeof(double));
       memset((void*)sim->r_im_DL[UE_id][aa],0,(RC.ru[0]->frame_parms->samples_per_tti)*sizeof(double));
     }
+    RU_PHY_UNLOCK(&RC.ru[0]->mutex);
   }
   pthread_mutex_unlock(&sim->RU_output_mutex[UE_id]);
   
   for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
+    RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
     txdata = RC.ru[ru_id]->common.txdata;
     frame_parms = RC.ru[ru_id]->frame_parms;
     
@@ -262,7 +267,8 @@ void do_DL_sig(sim_t *sim,
 #endif
 	
     } // RU_output_mask
-    pthread_mutex_unlock(&sim->RU_output_mutex[UE_id]);      
+    pthread_mutex_unlock(&sim->RU_output_mutex[UE_id]);
+    RU_PHY_UNLOCK(&RC.ru[ru_id]->mutex);
   } // ru_id
   
 }
@@ -399,6 +405,7 @@ void do_UL_sig(sim_t *sim, uint16_t subframe, uint8_t abstraction_flag, LTE_DL_F
   double *r_im_p[2] = {sim->r_im_UL[ru_id][0],sim->r_im_UL[ru_id][1]};
   
   rx_pwr = signal_energy_fp(r_re_p,r_im_p,nb_antennas_rx,frame_parms->samples_per_tti,0);
+  RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
   LOG_D(OCM,"[SIM][UL] RU %d (%d/%d rx antennas) : rx_pwr %f dBm (before RF) for subframe %d, gain %f\n",
 	ru_id,nb_antennas_rx,nb_antennas_rx,10*log10(rx_pwr),subframe,
 	(double)RC.ru[ru_id]->max_rxgain-(double)RC.ru[ru_id]->att_rx - 66.227);
@@ -438,4 +445,5 @@ void do_UL_sig(sim_t *sim, uint16_t subframe, uint8_t abstraction_flag, LTE_DL_F
   UNUSED(rx_pwr);
   UNUSED(rx_pwr2);
 #endif
+  RU_PHY_UNLOCK(&RC.ru[ru_id]->mutex);
 }

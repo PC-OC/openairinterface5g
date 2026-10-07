@@ -2704,6 +2704,7 @@ void init_ru_vnf(void) {
   LOG_D(PHY,"Process RUs RC.nb_RU:%d\n",RC.nb_RU);
 
   for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
+    RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
     LOG_D(PHY,"Process RC.ru[%d]\n",ru_id);
     ru               = RC.ru[ru_id];
     //    ru->rf_config_file = rf_config_file;
@@ -2737,6 +2738,7 @@ void init_ru_vnf(void) {
     pthread_cond_init( &proc->cond_pre_scd, NULL);
     pthread_create(&proc->pthread_pre_scd, NULL, pre_scd_thread, (void *)ru);
     pthread_setname_np(proc->pthread_pre_scd, "pre_scd_thread");
+    RU_PHY_UNLOCK(&ru->mutex);
   } // for ru_id
 
   //  sleep(1);

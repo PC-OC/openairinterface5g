@@ -18,6 +18,7 @@
 #include "common/utils/threadPool/task_ans.h"
 #include "common/utils/threadPool/thread-pool.h"
 #include "common/utils/threadPool/notified_fifo.h"
+#include "common/utils/assertions.h"
 
 #define MAX_BANDS_PER_RRU 4
 #define MAX_RRU_CONFIG_SIZE 1024
@@ -377,6 +378,8 @@ typedef struct RU_t_s {
   tpool_t *threadPool;
   /// index of this ru
   uint32_t idx;
+  /// Mutex for protecting this RU instance's data
+  pthread_mutex_t mutex;
   /// pointer to first RU
   struct RU_t_s *ru0;
   /// pointer to ru_mask
@@ -710,5 +713,17 @@ typedef struct RRU_config_s {
   /// embms mbsfn sf config
   MBSFN_config_t MBSFN_config[8];
 } RRU_config_t;
+
+#define RU_PHY_LOCK(lock)                                       \
+  do {                                                            \
+    int rc = pthread_mutex_lock(lock);                          \
+    AssertFatal(rc == 0, "error while locking RU mutex, pthread_mutex_lock() returned %d\n", rc); \
+  } while (0)
+
+#define RU_PHY_UNLOCK(lock)                                     \
+  do {                                                            \
+    int rc = pthread_mutex_unlock(lock);                        \
+    AssertFatal(rc == 0, "error while unlocking RU mutex, pthread_mutex_unlock() returned %d\n", rc); \
+  } while (0)
 
 #endif //__PHY_DEFS_RU__H__

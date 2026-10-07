@@ -410,7 +410,10 @@ static size_t dump_L1_meas_stats(PHY_VARS_gNB *gNB, RU_t *ru, char *output, size
 #define SORTED_LIST_SIZE 2048
 void *nrL1_stats_thread(void *param) {
   PHY_VARS_gNB     *gNB      = (PHY_VARS_gNB *)param;
-  RU_t *ru = RC.ru[0];
+  RU_t *ru;
+  RU_PHY_LOCK(&RC.ru[0]->mutex);
+  ru = RC.ru[0];
+  RU_PHY_UNLOCK(&ru->mutex);
   char output[L1STATSSTRLEN];
   memset(output,0,L1STATSSTRLEN);
   wait_sync("L1_stats_thread");

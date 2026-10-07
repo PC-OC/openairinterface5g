@@ -20,6 +20,7 @@
 #include "openair1/PHY/TOOLS/phy_scope_interface.h"
 #include "common/utils/load_module_shlib.h"
 #include "openair1/PHY/phy_extern_nr_ue.h"
+#include "openair1/PHY/defs_RU.h"
 
 static websrv_scope_params_t scope_params = {0, 1000, NULL, NULL, 65535};
 static websrv_params_t *websrvparams_ptr;
@@ -115,12 +116,14 @@ char *websrv_scope_initdata(void)
   scope_params.num_datamsg_max = 200;
   if (IS_SOFTMODEM_GNB) {
     scopeParms_t p;
+    RU_PHY_LOCK(&RC.ru[0]->mutex);
     p.ru = RC.ru[0];
     p.gNB = RC.gNB[0];
     gNBinitScope(&p);
     scope_params.scopedata = p.gNB->scopeData;
     scope_params.scopeform = create_phy_scope_gnb();
     scope_params.statusmask |= SCOPE_STATUSMASK_AVAILABLE;
+    RU_PHY_UNLOCK(&RC.ru[0]->mutex);
     return "gNB";
   } else if (IS_SOFTMODEM_5GUE) {
     scope_params.scopedata = nrPHY_vars_UE_g[0][0];

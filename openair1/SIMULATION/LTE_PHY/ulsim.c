@@ -10,6 +10,7 @@
 #include "PHY/defs_common.h"
 #include "PHY/defs_eNB.h"
 #include "PHY/defs_UE.h"
+#include "PHY/defs_RU.h"
 #include "PHY/phy_vars.h"
 #include "PHY/INIT/phy_init.h"
 #include "PHY/LTE_TRANSPORT/transport_proto.h"
@@ -576,7 +577,9 @@ int main(int argc, char **argv) {
   RC.eNB[0] = (PHY_VARS_eNB **)malloc(sizeof(PHY_VARS_eNB *));
   RC.ru = (RU_t **)malloc(sizeof(RC.ru));
   RC.eNB[0][0] = eNB;
+  RU_PHY_LOCK(&ru->mutex);
   RC.ru[0] = ru;
+  RU_PHY_UNLOCK(&ru->mutex);
 
   for (int k=0; k<eNB->RU_list[0]->nb_rx; k++) eNB->common_vars.rxdataF[k]     =  eNB->RU_list[0]->common.rxdataF[k];
 
