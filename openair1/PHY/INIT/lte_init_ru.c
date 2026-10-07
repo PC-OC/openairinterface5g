@@ -237,4 +237,5 @@ void phy_free_RU(RU_t *ru) {
   }
 
   free_and_zero(ru->common.sync_corr);
+  pthread_mutex_destroy(&ru->mutex);
 }

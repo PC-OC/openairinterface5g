@@ -131,4 +131,5 @@ void nr_phy_free_RU(RU_t *ru)
   PHY_VARS_gNB *gNB0 = ru->gNB_list[0];
   gNB0->num_RU--;
   DevAssert(gNB0->num_RU >= 0);
+  pthread_mutex_destroy(&ru->mutex);
 }

@@ -384,10 +384,12 @@ int main(int argc, char **argv){
   RC.gNB = (PHY_VARS_gNB**) malloc(2*sizeof(PHY_VARS_gNB *));
   RC.gNB[0] = malloc(sizeof(PHY_VARS_gNB));
   memset(RC.gNB[0],0,sizeof(PHY_VARS_gNB));
+   
 
   RC.ru = (RU_t**) malloc(2*sizeof(RU_t *));
   RC.ru[0] = (RU_t*) malloc(sizeof(RU_t ));
   memset(RC.ru[0],0,sizeof(RU_t));
+  pthread_mutex_init(&RC.ru[0]->mutex, NULL);
   RC.nb_RU = 1;
 
   gNB          = RC.gNB[0];

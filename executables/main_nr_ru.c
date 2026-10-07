@@ -179,6 +179,7 @@ int main(int argc, char **argv)
 
   init_NR_RU(config_get_if(), NULL);
 
+  RU_PHY_LOCK(&RC.ru[0]->mutex);
   RU_t *ru = RC.ru[0];
   ORU_t oru = {0};
   oru.ru = ru;
@@ -225,6 +226,7 @@ int main(int argc, char **argv)
   AssertFatal(ret == 0, "RU %u: openair0_device_load() ret %d: cannot initialize rfdevice\n", ru->idx, ret);
   ret = ru->rfdevice.trx_start_func(&ru->rfdevice);
   AssertFatal(ret == 0, "RU %u: trx_start_func() ret %d: cannot start rfdevice\n", ru->idx, ret);
+  RU_PHY_UNLOCK(&ru->mutex);
 
   // Signal handler
   signal(SIGINT, sig_handler);

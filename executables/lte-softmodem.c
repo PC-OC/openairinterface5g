@@ -498,8 +498,10 @@ int main ( int argc, char **argv )
     init_RU(RC.ru,RC.nb_RU,RC.eNB,RC.nb_L1_inst,RC.nb_L1_CC,get_softmodem_params()->rf_config_file,get_softmodem_params()->send_dmrs_sync);
     
     for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
+      RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
       RC.ru[ru_id]->rf_map.card=0;
       RC.ru[ru_id]->rf_map.chain=CC_id+(get_softmodem_params()->chain_offset);
+      RU_PHY_UNLOCK(&RC.ru[ru_id]->mutex);
     }
 
     config_sync_var=0;

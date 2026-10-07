@@ -99,6 +99,7 @@ static inline int rxtx(PHY_VARS_eNB *eNB,
   //L1_rxtx_proc_t *L1_proc_tx = &eNB->proc.L1_proc_tx;
   // *******************************************************************
 #if defined(PRE_SCD_THREAD)
+  RU_PHY_LOCK(&RC.ru[0]->mutex);
   RU_t *ru = RC.ru[0];
 #endif
 
@@ -186,6 +187,7 @@ static inline int rxtx(PHY_VARS_eNB *eNB,
     }
 
     AssertFatal((ret= pthread_mutex_unlock(&ru->proc.mutex_pre_scd))==0,"[eNB] error unlocking proc mutex for eNB pre scd, return %d\n",ret);
+    RU_PHY_UNLOCK(&ru->mutex);
   }
 
 #endif
@@ -1154,11 +1156,13 @@ void init_eNB_afterRU(void) {
   }
 
   for (int ru_id=0; ru_id<RC.nb_RU; ru_id++) {
+    RU_PHY_LOCK(&RC.ru[ru_id]->mutex);
     AssertFatal(RC.ru[ru_id]!=NULL,"ru_id %d is null\n",ru_id);
     RC.ru[ru_id]->wakeup_rxtx         = wakeup_rxtx;
     RC.ru[ru_id]->wakeup_prach_eNB    = wakeup_prach_eNB;
     RC.ru[ru_id]->wakeup_prach_eNB_br = wakeup_prach_eNB_br;
     RC.ru[ru_id]->eNB_top             = eNB_top;
+    RU_PHY_UNLOCK(&RC.ru[ru_id]->mutex);
   }
 }
 
