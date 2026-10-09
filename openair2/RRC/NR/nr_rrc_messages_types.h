@@ -68,4 +68,89 @@ typedef struct Rrc_gnb_trigger_ue_context_release_req_s {
 } Rrc_gnb_trigger_ue_context_release_req;
 #define RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ(mSGpTR) (mSGpTR)->ittiMsg.rrc_gnb_trigger_ue_context_release_req;
 
+typedef struct Mac_force_ul_failure_s {
+  rnti_t rnti;
+} Mac_force_ul_failure;
+#define MAC_FORCE_UL_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.mac_force_ul_failure;
+
+typedef struct Mac_get_ue_rnti_s {
+  rnti_t rnti;
+  bool has_mac;
+} Mac_get_ue_rnti;
+#define MAC_GET_UE_RNTI(mSGpTR) (mSGpTR)->ittiMsg.mac_get_ue_rnti;
+
+typedef struct Mac_get_ue_rnti_by_uid_s {
+  uid_t uid;
+  rnti_t rnti;
+  bool has_mac;
+} Mac_get_ue_rnti_by_uid;
+#define MAC_GET_UE_RNTI_BY_UID(mSGpTR) (mSGpTR)->ittiMsg.mac_get_ue_rnti_by_uid;
+
+typedef struct Mac_force_ue_release_s {
+  rnti_t rnti;
+} Mac_force_ue_release;
+#define MAC_FORCE_UE_RELEASE(mSGpTR) (mSGpTR)->ittiMsg.mac_force_ue_release;
+
+typedef struct Mac_get_ue_bwp_info_s {
+  rnti_t rnti;
+  int dl_bwp_id;
+  int ul_bwp_id;
+} Mac_get_ue_bwp_info;
+#define MAC_GET_UE_BWP_INFO(mSGpTR) (mSGpTR)->ittiMsg.mac_get_ue_bwp_info;
+
+typedef struct Mac_set_pusch_target_snr_s {
+  long target_snrx10;
+} Mac_set_pusch_target_snr;
+#define MAC_SET_PUSCH_TARGET_SNR(mSGpTR) (mSGpTR)->ittiMsg.mac_set_pusch_target_snr;
+
+typedef struct Mac_get_o1_stats_s {
+  int gNB_DU_id;
+  char gNB_DU_name[128];
+
+  long ssbFrequency;
+  long arfcnDL;
+  long arfcnUL;
+  long bw_mhz;
+  long pci;
+  long tac;
+  int mcc;
+  int mnc;
+  int mnc_digit_length;
+  int sd;
+  int sst;
+  int frame_type;
+  int band;
+  int scs;
+
+  long dl_numrbs;
+  long dl_startrb;
+  long dl_bwpscs;
+  long ul_numrbs;
+  long ul_startrb;
+  long ul_bwpscs;
+
+  uint64_t dl_total_prb_aggregate;
+  uint64_t dl_used_prb_aggregate;
+
+  int num_ues;
+  struct {
+    int rnti;
+    long txpdu_bytes;
+    long rxpdu_bytes;
+  } ue_rlc_stats[MAX_MOBILES_PER_GNB];
+
+  struct timespec tp_now;
+} Mac_get_o1_stats;
+#define MAC_GET_O1_STATS(mSGpTR) (mSGpTR)->ittiMsg.mac_get_o1_stats
+
+typedef struct Mac_set_bwconfig_s {
+  int bw_value;
+} Mac_set_bwconfig;
+#define MAC_SET_BWCONFIG(mSGpTR) (mSGpTR)->ittiMsg.mac_set_bwconfig
+
+typedef struct Mac_stop_modem_s {
+  int dummy;
+} Mac_stop_modem;
+#define MAC_STOP_MODEM(mSGpTR) (mSGpTR)->ittiMsg.mac_stop_modem
+
 #endif /* NR_RRC_MESSAGES_TYPES_H_ */
