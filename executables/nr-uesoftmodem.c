@@ -270,6 +270,16 @@ int main(int argc, char **argv)
     exit(-1); // need a softer mode
   }
 
+  if (g_telnetsrv_itti_start_hook != NULL) {
+    if (g_telnetsrv_itti_start_hook() < 0) {
+      LOG_E(NR_RRC, "Failed to start telnet server in ITTI mode\n");
+    }
+  } else if (g_telnetsrv_pthread_start_hook != NULL) {
+    if (g_telnetsrv_pthread_start_hook() < 0) {
+      LOG_E(NR_RRC, "Failed to start telnet server in pthread mode\n");
+    }
+  }
+
   nr_pdcp_layer_init();
   nas_init_nrue(NB_UE_INST);
 

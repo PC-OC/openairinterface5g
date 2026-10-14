@@ -55,6 +55,7 @@ MESSAGE_DEF(RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU,
             Rrc_get_ue_context_by_rnti_any_du,
             rrc_get_ue_context_by_rnti_any_du)
 MESSAGE_DEF(RRC_GET_DU_ID_BY_UE_ID, MESSAGE_PRIORITY_MED_PLUS, Rrc_get_du_id_by_ue_id, rrc_get_du_id_by_ue_id)
+MESSAGE_DEF(MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI, MESSAGE_PRIORITY_MED_PLUS, Mac_trigger_reestab_for_first_rnti, mac_trigger_reestab_for_first_rnti)
 MESSAGE_DEF(RRC_NR_F1_HO_TRIGGER, MESSAGE_PRIORITY_MED_PLUS, Rrc_trigger_ho, rrc_trigger_f1_ho)
 MESSAGE_DEF(RRC_GET_NGAP_UE_ID, MESSAGE_PRIORITY_MED_PLUS, Rrc_get_ngap_ue_id, rrc_get_ngap_ue_id)
 MESSAGE_DEF(RRC_NR_N2_HO_TRIGGER, MESSAGE_PRIORITY_MED_PLUS, Rrc_trigger_ho, rrc_trigger_n2_ho)

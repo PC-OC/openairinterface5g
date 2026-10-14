@@ -109,7 +109,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 1?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.180 9090 | grep "1234"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.180 9090 | grep "1234"</command>
   </testCase>
 
   <testCase>
@@ -170,7 +170,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 0?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.150 9090 | grep "3584"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.150 9090 | grep "3584"</command>
   </testCase>
 
   <testCase>
@@ -207,7 +207,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 1?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.180 9090 | grep "1234"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.180 9090 | grep "1234"</command>
   </testCase>
 
   <testCase>

@@ -90,7 +90,7 @@
     <class>Custom_Command</class>
     <desc>gNB NGAP UE Context Release Request (user-inactivity) for rrc_ue_id 1</desc>
     <node>localhost</node>
-    <command>echo rrc ctx_rel_req 1 | ncat 192.168.71.140 9090 | grep -q "Sent NGAP UE Context Release Request"</command>
+    <command>echo rrc ctx_rel_req 1 | ncat --no-shutdown --idle-timeout 5 192.168.71.140 9090 | grep -q "Sent NGAP UE Context Release Request"</command>
   </testCase>
 
   <testCase>

@@ -178,7 +178,13 @@ typedef void (*push_telnetcmd_func_t)(telnetshell_cmddef_t *cmd, char *cmdbuff, 
 int add_telnetcmd(char *modulename, telnetshell_vardef_t *var, telnetshell_cmddef_t *cmd);
 void set_sched(pthread_t tid, int pid,int priority);
 void set_affinity(pthread_t tid, int pid, int coreid);
-extern int get_phybsize(void); 
+extern int get_phybsize(void);
+void *run_telnetsrv(void *arg);
+void *run_telnetclt(void *arg);
+int telnetsrv_autoinit(void);
+int telnetsrv_pthread_start(void);
+void *run_telnetsrv_itti(void *arg);
+int telnetsrv_itti_start(void);
 #endif
 #ifdef WEBSERVERCODE
 extern void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);

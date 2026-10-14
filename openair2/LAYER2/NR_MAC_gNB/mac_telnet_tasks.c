@@ -418,6 +418,45 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Handler completed successfully\n");
 }
 
+void mac_trigger_reestab_for_first_rnti(MessageDef *msg_p, instance_t instance)
+{
+  UNUSED(msg_p);
+  MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI);
+
+  if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
+    LOG_E(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: No MAC instance available for instance %ld\n", instance);
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = 0;
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = false;
+    itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
+    return;
+  }
+
+  gNB_MAC_INST *mac = RC.nrmac[instance];
+  rnti_t first_rnti = 0;
+
+  NR_SCHED_LOCK(&mac->sched_lock);
+  UE_iterator((NR_UE_info_t **)mac->UE_info.connected_ue_list, it) {
+    first_rnti = it->rnti;
+    break;
+  }
+  NR_SCHED_UNLOCK(&mac->sched_lock);
+
+  if (first_rnti == 0) {
+    LOG_E(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: No UE found\n");
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = 0;
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = false;
+    itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
+    return;
+  }
+
+  LOG_I(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: Triggering reestablishment for UE with RNTI %04x\n", first_rnti);
+  nr_rlc_test_trigger_reestablishment(first_rnti);
+
+  resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = first_rnti;
+  resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = true;
+  itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
+}
+
 void *mac_gnb_task(void *args_p)
 {
   UNUSED(args_p);
@@ -485,6 +524,11 @@ void *mac_gnb_task(void *args_p)
       case MAC_SET_BWCONFIG:
         LOG_D(NR_MAC, "MAC Task: Processing MAC_SET_BWCONFIG message\n");
         mac_set_bwconfig_handler(msg_p, instance);
+        break;
+
+      case MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI:
+        LOG_D(NR_MAC, "MAC Task: Processing MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI message\n");
+        mac_trigger_reestab_for_first_rnti(msg_p, instance);
         break;
 
       case MAC_STOP_MODEM:

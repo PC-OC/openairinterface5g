@@ -91,7 +91,7 @@
     <class>Custom_Command</class>
     <desc>Trigger Reestablishment</desc>
     <node>localhost</node>
-    <command>echo ci force_reestab | ncat 192.168.71.171 9090 | grep -E 'Reset RLC counters of UE RNTI [0-9a-f]{4} to trigger reestablishment'</command>
+    <command>echo ci force_reestab | ncat --no-shutdown --idle-timeout 5 192.168.71.171 9090 | grep -E 'Reset RLC counters of UE RNTI [0-9a-f]{4} to trigger reestablishment'</command>
   </testCase>
 
   <testCase>
@@ -109,7 +109,7 @@
     <class>Custom_Command</class>
     <desc>Verify Reestablishment</desc>
     <node>localhost</node>
-    <command>echo ci get_reestab_count | ncat 192.168.71.150 9090 | grep -E 'UE RNTI [0-9a-f]{4} reestab 1'</command>
+    <command>echo ci get_reestab_count | ncat --no-shutdown --idle-timeout 5 192.168.71.150 9090 | grep -E 'UE RNTI [0-9a-f]{4} reestab 1'</command>
   </testCase>
 
   <testCase>
@@ -231,7 +231,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 1?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.150 9090 | grep "3585"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.150 9090 | grep "3585"</command>
   </testCase>
 
   <testCase>
@@ -262,7 +262,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 0?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.150 9090 | grep "3584"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.150 9090 | grep "3584"</command>
   </testCase>
 
   <testCase>
@@ -293,7 +293,7 @@
     <class>Custom_Command</class>
     <desc>UE (1) connected to DU-PCI 1?</desc>
     <node>localhost</node>
-    <command>echo ci fetch_du_by_ue_id | ncat 192.168.71.150 9090 | grep "3585"</command>
+    <command>echo ci fetch_du_by_ue_id | ncat --no-shutdown --idle-timeout 5 192.168.71.150 9090 | grep "3585"</command>
   </testCase>
 
   <testCase>
