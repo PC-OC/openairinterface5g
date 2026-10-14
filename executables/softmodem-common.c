@@ -88,7 +88,7 @@ void get_common_options(configmodule_interface_t *cfg)
   if (start_telnetsrv) {
     load_module_shlib("telnetsrv",NULL,0,NULL);
   }
-  
+
   if (start_telnetclt) {
     IS_SOFTMODEM_TELNETCLT = true;
   }
@@ -212,7 +212,7 @@ void set_softmodem_sighandler(void) {
   act.sa_handler=signal_handler;
   sigaction(SOFTMODEM_RTSIGNAL,&act,&oldact);
   // Disabled in order generate a core dump for analysis with gdb
-  // Enable for clean exit on CTRL-C (i.e. record player, USRP...) 
+  // Enable for clean exit on CTRL-C (i.e. record player, USRP...)
   signal(SIGINT,  signal_handler);
   # if 0
   printf("Send signal %d to display resource usage...\n",SIGRTMIN+1);
