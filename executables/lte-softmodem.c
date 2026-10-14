@@ -412,7 +412,7 @@ int main ( int argc, char **argv )
   if (RC.nb_inst > 0) {
     /* initializes PDCP and sets correct RLC Request/PDCP Indication callbacks */
    init_pdcp();
-    
+
     if (create_tasks(1) < 0) {
       printf("cannot create ITTI tasks\n");
       exit(-1);
@@ -482,7 +482,7 @@ int main ( int argc, char **argv )
   printf("wait_eNBs()\n");
   wait_eNBs();
   printf("About to Init RU threads RC.nb_RU:%d\n", RC.nb_RU);
-  
+
   // RU thread and some L1 procedure aren't necessary in VNF or L2 FAPI simulator.
   // but RU thread deals with pre_scd and this is necessary in VNF and simulator.
   // some initialization is necessary and init_ru_vnf do this.
@@ -492,7 +492,7 @@ int main ( int argc, char **argv )
           "number of L1 instances %d, number of RU %d, number of CPU cores %d: Initializing RU threads\n",
           RC.nb_L1_inst, RC.nb_RU, get_nprocs());
     init_RU(RC.ru,RC.nb_RU,RC.eNB,RC.nb_L1_inst,RC.nb_L1_CC,get_softmodem_params()->rf_config_file,get_softmodem_params()->send_dmrs_sync);
-    
+
     for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
       RC.ru[ru_id]->rf_map.card=0;
       RC.ru[ru_id]->rf_map.chain=CC_id+(get_softmodem_params()->chain_offset);
@@ -513,7 +513,7 @@ int main ( int argc, char **argv )
     LOG_I(ENB_APP,"RC.nb_RU:%d\n", RC.nb_RU);
     // once all RUs are ready intiailize the rest of the eNBs ((dependence on final RU parameters after configuration)
     printf("ALL RUs ready - init eNBs\n");
-    
+
     if (NFAPI_MODE!=NFAPI_MODE_PNF && NFAPI_MODE!=NFAPI_MODE_VNF) {
       LOG_I(ENB_APP,"Not NFAPI mode - call init_eNB_afterRU()\n");
       init_eNB_afterRU();

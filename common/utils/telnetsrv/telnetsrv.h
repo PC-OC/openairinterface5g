@@ -9,7 +9,7 @@
 #ifndef TELNETSRV_H
 #define TELNETSRV_H
 
-#include <common/ran_context.h> 
+#include <common/ran_context.h>
 
 #define TELNET_MAX_MSGLENGTH      2048
 #define TELNET_PROMPT_PREFIX      "softmodem"
@@ -136,22 +136,22 @@ typedef struct {
      char *logfile; // filename to use when redirecting output to file
      int new_socket;                 // socket of the client connection
      int logfilefd;                  // file id of the log file when log output is redirected to a file
-     int  saved_stdout;              // file id of the previous stdout, used to be able to restore original stdout 
+     int  saved_stdout;              // file id of the previous stdout, used to be able to restore original stdout
      cmdparser_t CmdParsers[TELNET_MAXCMD];   // array of registered modules.
      char msgbuff[TELNET_MAX_MSGLENGTH];      // internal buffer of the client_printf function which is used to print to the client terminal */
      unsigned int   listenport;           // ip port the telnet server is listening on
      char          *listenaddr;           // ip address the telnet server is listening on
-     unsigned int   listenstdin;          // enable command input from stdin    
+     unsigned int   listenstdin;          // enable command input from stdin
      unsigned int   loopcount;            // loop command param: number of loop iteration
      unsigned int   loopdelay;            // loop command param: delay in ms between 2 iterations
      unsigned int   phyprntbuff_size;     // for phy module,  dump_eNB_stats function buffer size
 } telnetsrv_params_t;
 
 
-typedef void(*settelnetmodule_t)(char *name, void *ptr); 
+typedef void(*settelnetmodule_t)(char *name, void *ptr);
 
 /*-------------------------------------------------------------------------------------------*/
-/* 
+/*
 VT escape sequence definition, for smarter display....
 */
 
