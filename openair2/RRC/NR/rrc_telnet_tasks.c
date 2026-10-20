@@ -45,22 +45,30 @@ static void rrc_get_single_ue_rnti_helper(MessageDef **msg_p, instance_t instanc
 
 void rrc_get_single_ue_rnti(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
   rrc_get_single_ue_rnti_helper(&resp_p, instance);
+  resp_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void rrc_get_ue_context_by_rnti_any_du(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU);
   resp_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti;
   resp_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.ue_context_exists =
       (rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[instance], msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti, -1) != NULL);
+  resp_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void rrc_check_ue_context(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_check_ue_context.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_CHECK_UE_CONTEXT);
   resp_p->ittiMsg.rrc_check_ue_context.id = msg_p->ittiMsg.rrc_check_ue_context.id;
   if (RC.nrrrc[instance] != NULL) {
@@ -71,6 +79,7 @@ void rrc_check_ue_context(MessageDef *msg_p, instance_t instance)
       resp_p->ittiMsg.rrc_check_ue_context.check = true;
     }
   }
+  resp_p->ittiMsg.rrc_check_ue_context.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
@@ -99,8 +108,11 @@ static void rrc_get_ue_context_by_ue_id_helper(MessageDef **msg_p, ue_id_t ue_id
 
 void rrc_get_ue_context_by_ue_id(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_get_ue_context_by_ue_id.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_UE_CONTEXT_BY_UE_ID);
   rrc_get_ue_context_by_ue_id_helper(&resp_p, msg_p->ittiMsg.rrc_get_ue_context_by_ue_id.id, instance);
+  resp_p->ittiMsg.rrc_get_ue_context_by_ue_id.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
@@ -127,8 +139,11 @@ static void rrc_get_du_id_by_ue_id_helper(MessageDef **resp_p, int ue_id, instan
 
 void rrc_get_du_id_by_ue_id(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_DU_ID_BY_UE_ID);
   rrc_get_du_id_by_ue_id_helper(&resp_p, msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id, instance);
+  resp_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
@@ -147,6 +162,8 @@ void rrc_trigger_n2_ho(MessageDef *msg_p, instance_t instance)
 
 void rrc_get_ngap_ue_id(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_get_ngap_ue_id.client_idx;
+
   if (msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id == -1) {
     MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
     rrc_get_single_ue_rnti_helper(&resp_p, instance);
@@ -162,11 +179,14 @@ void rrc_get_ngap_ue_id(MessageDef *msg_p, instance_t instance)
   } else {
     resp_p2->ittiMsg.rrc_get_ngap_ue_id.amf_ue_ngap_id = 0;
   }
+  resp_p2->ittiMsg.rrc_get_ngap_ue_id.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p2);
 }
 
 void rrc_gnb_generate_rrcrelease(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.client_idx;
+
   if (msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id == -1) {
     MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
     rrc_get_single_ue_rnti_helper(&resp_p, instance);
@@ -180,10 +200,15 @@ void rrc_gnb_generate_rrcrelease(MessageDef *msg_p, instance_t instance)
   } else {
     LOG_E(RRC, "UE context not found for ue_id %lu\n", msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id);
   }
+  MessageDef *resp_p2 = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_GENERATE_RRCRELEASE);
+  resp_p2->ittiMsg.rrc_gnb_generate_rrcrelease.client_idx = client_idx;
+  itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p2);
 }
 
 void rrc_gnb_generate_rrcrelease_all(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.client_idx;
+
   MessageDef * resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_GENERATE_RRCRELEASE_ALL);
   rrc_gNB_ue_context_t *ue_context_p = NULL;
   int i=0;
@@ -194,23 +219,29 @@ void rrc_gnb_generate_rrcrelease_all(MessageDef *msg_p, instance_t instance)
     resp_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.rrc_gnb_generate_rrcreleases[i].ue_id = ue_context_p->ue_context.rrc_ue_id;
     i++;
   }
+  resp_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void rrc_gnb_trigger_ue_context_release_req(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ);
   gNB_RRC_INST *rrc = RC.nrrrc[0];
   resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id = msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id;
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(rrc, msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id);
   if (!ue_context_p) {
+    resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
   } else if (!ngap_get_ue_context(msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id)) {
     resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.rrc_ue_context = true;
+    resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
   } else {
     resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.rrc_ue_context = true;
     resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ngap_ue_context = true;
+    resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx = client_idx;
     ngap_cause_t cause = {
         .type = NGAP_CAUSE_RADIO_NETWORK,
         .value = NGAP_CAUSE_RADIO_NETWORK_USER_INACTIVITY,

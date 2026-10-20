@@ -31,14 +31,9 @@
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt(mSG, ##aRGS); return -1; } while (0)
 
-extern bool telnetsrv_pending_reestab;
-extern bool telnetsrv_pending_reestab_count;
-extern bool telnetsrv_pending_f1_ho;
-extern bool telnetsrv_pending_du_by_ue_id;
-extern bool telnetsrv_pending_ul_failure;
-extern bool telnetsrv_pending_ue_release;
-extern bool telnetsrv_pending_bwp_info;
-extern int telnetsrv_pending_bwp_id;
+// For multi-client support
+extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
+extern int current_client_idx;
 
 int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
 {
@@ -46,8 +41,13 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
   if (buf)
     ERROR_MSG_RET("no parameter allowed\n");
 
-  telnetsrv_pending_reestab = false;
+  if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+    telnet_clients[current_client_idx].pending_reestab = false;
+  }
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+  if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+    msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
+  }
   itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   return 0;
 }
@@ -56,14 +56,24 @@ int get_reestab_count(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
-    telnetsrv_pending_reestab_count = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_reestab_count = true;
+    }
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
   } else {
     ue_id_t ue_id = strtol(buf, NULL, 10);
-    telnetsrv_pending_reestab_count = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_reestab_count = true;
+    }
     MessageDef *msg_ue_context_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_UE_CONTEXT_BY_UE_ID);
     msg_ue_context_p->ittiMsg.rrc_get_ue_context_by_ue_id.id = ue_id;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_ue_context_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_context_p);
   }
 
@@ -74,8 +84,13 @@ int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
-    telnetsrv_pending_reestab = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_reestab = true;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   } else {
     rnti_t rnti = strtol(buf, NULL, 16);
@@ -94,13 +109,21 @@ int fetch_du_by_ue_id(char *buf, int debug, telnet_printfunc_t prnt)
   UNUSED(debug);
 
   if (!buf) {
-    telnetsrv_pending_du_by_ue_id = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_du_by_ue_id = true;
+    }
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
   } else {
     ue_id_t ue_id = strtol(buf, NULL, 10);
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_DU_ID_BY_UE_ID);
     msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id = ue_id;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   }
 
@@ -124,11 +147,19 @@ int rrc_gNB_trigger_f1_ho(char *buf, int debug, telnet_printfunc_t prnt)
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_F1_HO_TRIGGER);
     msg_p->ittiMsg.rrc_trigger_f1_ho.id = parsed_id;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.rrc_trigger_f1_ho.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     prnt("RRC F1 handover triggered for UE %u\n", (ue_id_t)parsed_id);
   } else {
-    telnetsrv_pending_f1_ho = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_f1_ho = true;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   }
   return 0;
@@ -162,6 +193,9 @@ int rrc_gNB_trigger_n2_ho(char *buf, int debug, telnet_printfunc_t prnt)
     MessageDef *msg_ho_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_N2_HO_TRIGGER);
     msg_ho_p->ittiMsg.rrc_trigger_n2_ho.id = ueId;
     msg_ho_p->ittiMsg.rrc_trigger_n2_ho.neighbour_pci = neighbour_pci;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_ho_p->ittiMsg.rrc_trigger_n2_ho.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ho_p);
     // Print success message
     prnt("RRC N2 handover triggered for UE %u with neighbour cell id %u\n",
@@ -175,8 +209,13 @@ int force_ul_failure(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
-    telnetsrv_pending_ul_failure = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_ul_failure = true;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -186,6 +225,9 @@ int force_ul_failure(char *buf, int debug, telnet_printfunc_t prnt)
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
     msg_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_force_ul_failure.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   }
@@ -195,8 +237,13 @@ int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
-    telnetsrv_pending_ue_release = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_ue_release = true;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -206,10 +253,16 @@ int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
 
     MessageDef *msg_ul_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
     msg_ul_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_ul_p->ittiMsg.mac_force_ul_failure.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_ul_p);
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UE_RELEASE);
     msg_p->ittiMsg.mac_force_ue_release.rnti = rnti;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_force_ue_release.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     prnt("Reset RLC counters and triggered UE release for UE RNTI %04x\n", rnti);
     return 0;
@@ -220,8 +273,13 @@ static int get_current_bwp(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
-    telnetsrv_pending_bwp_info = true;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_bwp_info = true;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -231,6 +289,9 @@ static int get_current_bwp(char *buf, int debug, telnet_printfunc_t prnt)
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_BWP_INFO);
     msg_p->ittiMsg.mac_get_ue_bwp_info.rnti = rnti;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_get_ue_bwp_info.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   }
@@ -322,8 +383,13 @@ static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
   char *srnti = strtok(NULL, " ");
 
   if (!srnti || !srnti[0]) {
-    telnetsrv_pending_bwp_id = bwpId;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_bwp_id = bwpId;
+    }
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
+    }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -331,7 +397,9 @@ static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
     if (rnti < 1 || rnti >= 0xfffe)
       ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
-    telnetsrv_pending_bwp_id = -1;
+    if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+      telnet_clients[current_client_idx].pending_bwp_id = -1;
+    }
 
     prnt("bwpId %d rnti %04x\n", bwpId, rnti);
     if (!nr_trigger_bwp_switch(rnti, bwpId)) {
