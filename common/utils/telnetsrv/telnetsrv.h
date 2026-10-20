@@ -10,6 +10,7 @@
 #define TELNETSRV_H
 
 #include <common/ran_context.h>
+#include "stdbool.h"
 
 #define TELNET_MAX_MSGLENGTH      2048
 #define TELNET_PROMPT_PREFIX      "softmodem"
@@ -64,6 +65,27 @@ typedef int(*qcmdfunc_t)(char*, int, telnet_printfunc_t prnt,void *arg);
 #define TELNETSRV_CMDFLAG_NEEDPARAM (1 << 10) // websrv: The command needs a parameter
 #define TELNETSRV_CMDFLAG_WEBSRV_SETRETURNTBL (1 << 11) // websrv: set callback returns a new table
 #define TELNETSRV_CMDFLAG_AUTOUPDATE (1 << 12) // command can be re-submitted automatically for result update
+
+#define TELNET_MAX_CLIENTS 10
+
+typedef struct {
+  int socket;
+  bool active;
+  bool pending_reestab;
+  bool pending_reestab_count;
+  bool pending_f1_ho;
+  bool pending_du_by_ue_id;
+  bool pending_ul_failure;
+  bool pending_ue_release;
+  bool pending_bwp_info;
+  int pending_bwp_id;
+} telnet_client_t;
+
+#ifdef TELNETSERVERCODE
+extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
+extern int current_client_idx;
+#endif
+
 typedef struct cmddef {
     char cmdname[TELNET_CMD_MAXSIZE];
     char helpstr[TELNET_HELPSTR_SIZE];
@@ -185,6 +207,7 @@ int telnetsrv_autoinit(void);
 int telnetsrv_pthread_start(void);
 void *run_telnetsrv_itti(void *arg);
 int telnetsrv_itti_start(void);
+void client_printf_to_client(int client_idx, const char *message, ...);
 #endif
 #ifdef WEBSERVERCODE
 extern void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);

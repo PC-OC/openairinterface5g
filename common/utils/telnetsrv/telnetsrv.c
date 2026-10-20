@@ -51,20 +51,10 @@ static char telnetparams_listenaddr[CONFIG_MAXOPTLENGTH];
 static char telnetparams_histfile[CONFIG_MAXOPTLENGTH];
 static char telnetparams_logfile[CONFIG_MAXOPTLENGTH];
 
-#define TELNET_MAX_CLIENTS 10
-static int telnet_client_sockets[TELNET_MAX_CLIENTS];
-static int telnet_client_active[TELNET_MAX_CLIENTS];
+ telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
 static int num_telnet_clients = 0;
 
-// Track pending commands that need additional action on response
-bool telnetsrv_pending_reestab = false;
-bool telnetsrv_pending_reestab_count = false;
-bool telnetsrv_pending_f1_ho = false;
-bool telnetsrv_pending_du_by_ue_id = false;
-bool telnetsrv_pending_ul_failure = false;
-bool telnetsrv_pending_ue_release = false;
-bool telnetsrv_pending_bwp_info = false;
-int telnetsrv_pending_bwp_id = -1;  // For trigger_bwp_switch
+ int current_client_idx = -1;
 
 // O1 modem state (defined here, extern in telnetsrv_o1.c)
 bool telnetsrv_o1_running = true;
@@ -82,9 +72,18 @@ static notifiedFIFO_t telnet_cmdrespq;
 static int telnet_add_client(int sock) {
   pthread_mutex_lock(&telnet_clients_mutex);
   for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
-    if (!telnet_client_active[i]) {
-      telnet_client_sockets[i] = sock;
-      telnet_client_active[i] = 1;
+    if (!telnet_clients[i].active) {
+      telnet_clients[i].socket = sock;
+      telnet_clients[i].active = true;
+      // Initialize pending state
+      telnet_clients[i].pending_reestab = false;
+      telnet_clients[i].pending_reestab_count = false;
+      telnet_clients[i].pending_f1_ho = false;
+      telnet_clients[i].pending_du_by_ue_id = false;
+      telnet_clients[i].pending_ul_failure = false;
+      telnet_clients[i].pending_ue_release = false;
+      telnet_clients[i].pending_bwp_info = false;
+      telnet_clients[i].pending_bwp_id = -1;
       num_telnet_clients++;
       pthread_mutex_unlock(&telnet_clients_mutex);
       return i;
@@ -97,11 +96,11 @@ static int telnet_add_client(int sock) {
 static void telnet_remove_client(int client_idx) {
   if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS) return;
   pthread_mutex_lock(&telnet_clients_mutex);
-  if (telnet_client_active[client_idx]) {
-    itti_unsubscribe_event_fd(TASK_TELNET, telnet_client_sockets[client_idx]);
-    close(telnet_client_sockets[client_idx]);
-    telnet_client_sockets[client_idx] = -1;
-    telnet_client_active[client_idx] = 0;
+  if (telnet_clients[client_idx].active) {
+    itti_unsubscribe_event_fd(TASK_TELNET, telnet_clients[client_idx].socket);
+    close(telnet_clients[client_idx].socket);
+    telnet_clients[client_idx].socket = -1;
+    telnet_clients[client_idx].active = false;
     num_telnet_clients--;
   }
   pthread_mutex_unlock(&telnet_clients_mutex);
@@ -109,7 +108,7 @@ static void telnet_remove_client(int client_idx) {
 
 static int telnet_find_client(int sock) {
   for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
-    if (telnet_client_active[i] && telnet_client_sockets[i] == sock) {
+    if (telnet_clients[i].active && telnet_clients[i].socket == sock) {
       return i;
     }
   }
@@ -119,11 +118,11 @@ static int telnet_find_client(int sock) {
 static void telnet_cleanup_all_clients(void) {
   pthread_mutex_lock(&telnet_clients_mutex);
   for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
-    if (telnet_client_active[i]) {
-      itti_unsubscribe_event_fd(TASK_TELNET, telnet_client_sockets[i]);
-      close(telnet_client_sockets[i]);
-      telnet_client_sockets[i] = -1;
-      telnet_client_active[i] = 0;
+    if (telnet_clients[i].active) {
+      itti_unsubscribe_event_fd(TASK_TELNET, telnet_clients[i].socket);
+      close(telnet_clients[i].socket);
+      telnet_clients[i].socket = -1;
+      telnet_clients[i].active = false;
     }
   }
   num_telnet_clients = 0;
@@ -199,6 +198,23 @@ void client_printf(const char *message, ...) {
 
   va_end(va_args);
   return ;
+}
+
+void client_printf_to_client(int client_idx, const char *message, ...) {
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    va_list va_args;
+    va_start(va_args, message);
+    vfprintf(stderr, message, va_args);
+    va_end(va_args);
+    return;
+  }
+
+  va_list va_args;
+  va_start(va_args, message);
+  char msgbuff[TELNET_MAX_MSGLENGTH];
+  vsnprintf(msgbuff, sizeof(msgbuff) - 1, message, va_args);
+  send(telnet_clients[client_idx].socket, msgbuff, strlen(msgbuff), MSG_NOSIGNAL);
+  va_end(va_args);
 }
 
 void set_sched(pthread_t tid, int pid, int priority) {
@@ -1007,8 +1023,10 @@ void *run_telnetsrv_itti(void *arg) {
   itti_subscribe_event_fd(TASK_TELNET, sock);
 
   pthread_mutex_lock(&telnet_clients_mutex);
-  memset(telnet_client_sockets, -1, sizeof(telnet_client_sockets));
-  memset(telnet_client_active, 0, sizeof(telnet_client_active));
+  for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
+    telnet_clients[i].socket = -1;
+    telnet_clients[i].active = false;
+  }
   num_telnet_clients = 0;
   pthread_mutex_unlock(&telnet_clients_mutex);
 
@@ -1145,7 +1163,7 @@ void *run_telnetsrv_itti(void *arg) {
       else {
         int client_idx = telnet_find_client(fd);
         if (client_idx >= 0) {
-          int client_sock = telnet_client_sockets[client_idx];
+          int client_sock = telnet_clients[client_idx].socket;
           filled = 0;
           memset(buf, 0, sizeof(buf));
 
@@ -1182,7 +1200,7 @@ void *run_telnetsrv_itti(void *arg) {
             TELNET_LOG("Command received from client %d: readc %i filled %i \"%s\"\n",
                       client_idx, readc, filled, buf);
 
-
+            current_client_idx = client_idx;
             telnetparams.new_socket = client_sock;
 
             if (buf[0] == '!') {

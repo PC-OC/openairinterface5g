@@ -10,6 +10,8 @@ extern int stop_L1(module_id_t gnb_id);
 
 void mac_get_ue_rnti(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_get_ue_rnti.client_idx;
+
   UNUSED(msg_p);
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_RNTI);
 
@@ -31,11 +33,14 @@ void mac_get_ue_rnti(MessageDef *msg_p, instance_t instance)
     resp_p->ittiMsg.mac_get_ue_rnti.has_mac = true;
     LOG_D(NR_MAC, "MAC_GET_UE_RNTI: Found UE with RNTI %x\n", resp_p->ittiMsg.mac_get_ue_rnti.rnti);
   }
+  resp_p->ittiMsg.mac_get_ue_rnti.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_get_ue_rnti_by_uid(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_get_ue_rnti_by_uid.client_idx;
+
   uid_t uid = msg_p->ittiMsg.mac_get_ue_rnti_by_uid.uid;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_RNTI_BY_UID);
   resp_p->ittiMsg.mac_get_ue_rnti_by_uid.uid = uid;
@@ -59,16 +64,20 @@ void mac_get_ue_rnti_by_uid(MessageDef *msg_p, instance_t instance)
     resp_p->ittiMsg.mac_get_ue_rnti_by_uid.rnti = UE ? UE->rnti : 0;
     resp_p->ittiMsg.mac_get_ue_rnti_by_uid.has_mac = true;
   }
+  resp_p->ittiMsg.mac_get_ue_rnti_by_uid.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_force_ul_failure(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_force_ul_failure.client_idx;
+
   rnti_t rnti = msg_p->ittiMsg.mac_force_ul_failure.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_FORCE_UL_FAILURE);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_FORCE_UL_FAILURE: No MAC instance available for instance %ld, RNTI %x\n", instance, rnti);
+    resp_p->ittiMsg.mac_force_ul_failure.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -87,16 +96,20 @@ void mac_force_ul_failure(MessageDef *msg_p, instance_t instance)
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   LOG_D(NR_MAC, "Sending MAC_FORCE_UL_FAILURE response to TELNET\n");
+  resp_p->ittiMsg.mac_force_ul_failure.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_force_ue_release(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_force_ue_release.client_idx;
+
   rnti_t rnti = msg_p->ittiMsg.mac_force_ue_release.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_FORCE_UE_RELEASE);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_FORCE_UE_RELEASE: No MAC instance available for instance %ld, RNTI %x\n", instance, rnti);
+    resp_p->ittiMsg.mac_force_ue_release.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -117,11 +130,14 @@ void mac_force_ue_release(MessageDef *msg_p, instance_t instance)
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   LOG_D(NR_MAC, "Sending MAC_FORCE_UE_RELEASE response to TELNET\n");
+  resp_p->ittiMsg.mac_force_ue_release.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_get_ue_bwp_info(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_get_ue_bwp_info.client_idx;
+
   rnti_t rnti = msg_p->ittiMsg.mac_get_ue_bwp_info.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_BWP_INFO);
   resp_p->ittiMsg.mac_get_ue_bwp_info.rnti = rnti;
@@ -130,6 +146,7 @@ void mac_get_ue_bwp_info(MessageDef *msg_p, instance_t instance)
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_GET_UE_BWP_INFO: No MAC instance available for instance %ld, RNTI %x\n", instance, rnti);
+    resp_p->ittiMsg.mac_get_ue_bwp_info.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -149,16 +166,20 @@ void mac_get_ue_bwp_info(MessageDef *msg_p, instance_t instance)
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   LOG_D(NR_MAC, "Sending MAC_GET_UE_BWP_INFO response to TELNET\n");
+  resp_p->ittiMsg.mac_get_ue_bwp_info.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_set_pusch_target_snr(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_set_pusch_target_snr.client_idx;
+
   long target_snrx10 = msg_p->ittiMsg.mac_set_pusch_target_snr.target_snrx10;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_SET_PUSCH_TARGET_SNR);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_SET_PUSCH_TARGET_SNR: No MAC instance available for instance %ld\n", instance);
+    resp_p->ittiMsg.mac_set_pusch_target_snr.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -172,16 +193,20 @@ void mac_set_pusch_target_snr(MessageDef *msg_p, instance_t instance)
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   LOG_D(NR_MAC, "MAC_SET_PUSCH_TARGET_SNR: Set target SNR to %ld for all UEs\n", target_snrx10);
+  resp_p->ittiMsg.mac_set_pusch_target_snr.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_set_bwconfig_handler(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_set_bwconfig.client_idx;
+
   int bw_value = msg_p->ittiMsg.mac_set_bwconfig.bw_value;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_SET_BWCONFIG);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_SET_BWCONFIG: No MAC instance available for instance %ld\n", instance);
+    resp_p->ittiMsg.mac_set_bwconfig.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -249,16 +274,20 @@ void mac_set_bwconfig_handler(MessageDef *msg_p, instance_t instance)
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
   LOG_D(NR_MAC, "MAC_SET_BWCONFIG: Bandwidth configuration updated to %d MHz\n", bw_value);
+  resp_p->ittiMsg.mac_set_bwconfig.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_stop_modem_handler(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_stop_modem.client_idx;
+
   UNUSED(msg_p);
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_STOP_MODEM);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_STOP_MODEM: No MAC instance available for instance %ld\n", instance);
+    resp_p->ittiMsg.mac_stop_modem.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -278,11 +307,14 @@ void mac_stop_modem_handler(MessageDef *msg_p, instance_t instance)
 
   stop_L1(0);
   LOG_D(NR_MAC, "MAC_STOP_MODEM: L1 stopped\n");
+  resp_p->ittiMsg.mac_stop_modem.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
 void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
 {
+  int client_idx = msg_p->ittiMsg.mac_get_o1_stats.client_idx;
+
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Handler started\n");
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_O1_STATS);
@@ -414,19 +446,22 @@ void mac_get_o1_stats_handler(MessageDef *msg_p, instance_t instance)
 
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Sending response to TASK_TELNET\n");
 
+  resp_p->ittiMsg.mac_get_o1_stats.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
   LOG_D(NR_MAC, "MAC_GET_O1_STATS: Handler completed successfully\n");
 }
 
 void mac_trigger_reestab_for_first_rnti(MessageDef *msg_p, instance_t instance)
 {
-  UNUSED(msg_p);
+  int client_idx = msg_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx;
+
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI);
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: No MAC instance available for instance %ld\n", instance);
     resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = 0;
     resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = false;
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -445,6 +480,7 @@ void mac_trigger_reestab_for_first_rnti(MessageDef *msg_p, instance_t instance)
     LOG_E(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: No UE found\n");
     resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = 0;
     resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = false;
+    resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx = client_idx;
     itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
     return;
   }
@@ -454,6 +490,7 @@ void mac_trigger_reestab_for_first_rnti(MessageDef *msg_p, instance_t instance)
 
   resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.rnti = first_rnti;
   resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.has_rnti = true;
+  resp_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
 }
 
