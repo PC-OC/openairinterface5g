@@ -45,7 +45,7 @@
 #include "telnetsrv_proccmd.h"
 #include "telnetsrv_itti_handlers.h"
 static char *telnet_defstatmod[] = {"softmodem","phy","loader","measur"};
-static telnetsrv_params_t telnetparams;
+telnetsrv_params_t telnetparams;
 
 static char telnetparams_listenaddr[CONFIG_MAXOPTLENGTH];
 static char telnetparams_histfile[CONFIG_MAXOPTLENGTH];
@@ -53,8 +53,6 @@ static char telnetparams_logfile[CONFIG_MAXOPTLENGTH];
 
  telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
 static int num_telnet_clients = 0;
-
- int current_client_idx = -1;
 
 // O1 modem state (defined here, extern in telnetsrv_o1.c)
 bool telnetsrv_o1_running = true;
@@ -1208,7 +1206,7 @@ void *run_telnetsrv_itti(void *arg) {
             TELNET_LOG("Command received from client %d: readc %i filled %i \"%s\"\n",
                       client_idx, readc, filled, buf);
 
-            current_client_idx = client_idx;
+            telnetparams.current_client_idx = client_idx;
             telnetparams.new_socket = client_sock;
 
             if (buf[0] == '!') {

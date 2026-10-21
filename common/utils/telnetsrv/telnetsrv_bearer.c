@@ -29,7 +29,7 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
     LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
     return 1;
   }
-  msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+  msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = telnetsrv_get_current_client_idx();
   itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   return 0;
 }
@@ -44,7 +44,7 @@ int add_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
       return 1;
     }
-    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -58,7 +58,7 @@ int add_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       return 1;
     }
     msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = rnti;
-    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   //rrc_gNB_trigger_new_bearer(rnti);
     prnt("called rrc_gNB_trigger_new_bearer(%04x)\n", rnti);
@@ -76,7 +76,7 @@ int release_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
       return 1;
     }
-    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -90,7 +90,7 @@ int release_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       return 1;
     }
     msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = rnti;
-    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   //rrc_gNB_trigger_release_bearer(rnti);
     prnt("called rrc_gNB_trigger_release_bearer(%04x)\n", rnti);
