@@ -14,6 +14,10 @@ void mac_get_ue_rnti(MessageDef *msg_p, instance_t instance)
 
   UNUSED(msg_p);
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_RNTI);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_GET_UE_RNTI\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_D(NR_MAC, "MAC_GET_UE_RNTI: No MAC instance available for instance %ld, returning RNTI 0\n", instance);
@@ -43,6 +47,10 @@ void mac_get_ue_rnti_by_uid(MessageDef *msg_p, instance_t instance)
 
   uid_t uid = msg_p->ittiMsg.mac_get_ue_rnti_by_uid.uid;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_RNTI_BY_UID);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_GET_UE_RNTI_BY_UID\n");
+    return;
+  }
   resp_p->ittiMsg.mac_get_ue_rnti_by_uid.uid = uid;
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
@@ -74,6 +82,10 @@ void mac_force_ul_failure(MessageDef *msg_p, instance_t instance)
 
   rnti_t rnti = msg_p->ittiMsg.mac_force_ul_failure.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_FORCE_UL_FAILURE);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_FORCE_UL_FAILURE\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_FORCE_UL_FAILURE: No MAC instance available for instance %ld, RNTI %x\n", instance, rnti);
@@ -106,6 +118,10 @@ void mac_force_ue_release(MessageDef *msg_p, instance_t instance)
 
   rnti_t rnti = msg_p->ittiMsg.mac_force_ue_release.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_FORCE_UE_RELEASE);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_FORCE_UE_RELEASE\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_FORCE_UE_RELEASE: No MAC instance available for instance %ld, RNTI %x\n", instance, rnti);
@@ -140,6 +156,10 @@ void mac_get_ue_bwp_info(MessageDef *msg_p, instance_t instance)
 
   rnti_t rnti = msg_p->ittiMsg.mac_get_ue_bwp_info.rnti;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_GET_UE_BWP_INFO);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_GET_UE_BWP_INFO\n");
+    return;
+  }
   resp_p->ittiMsg.mac_get_ue_bwp_info.rnti = rnti;
   resp_p->ittiMsg.mac_get_ue_bwp_info.dl_bwp_id = -1;
   resp_p->ittiMsg.mac_get_ue_bwp_info.ul_bwp_id = -1;
@@ -176,6 +196,10 @@ void mac_set_pusch_target_snr(MessageDef *msg_p, instance_t instance)
 
   long target_snrx10 = msg_p->ittiMsg.mac_set_pusch_target_snr.target_snrx10;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_SET_PUSCH_TARGET_SNR);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_SET_PUSCH_TARGET_SNR\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_SET_PUSCH_TARGET_SNR: No MAC instance available for instance %ld\n", instance);
@@ -203,6 +227,10 @@ void mac_set_bwconfig_handler(MessageDef *msg_p, instance_t instance)
 
   int bw_value = msg_p->ittiMsg.mac_set_bwconfig.bw_value;
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_SET_BWCONFIG);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_SET_BWCONFIG\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_SET_BWCONFIG: No MAC instance available for instance %ld\n", instance);
@@ -284,6 +312,10 @@ void mac_stop_modem_handler(MessageDef *msg_p, instance_t instance)
 
   UNUSED(msg_p);
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_STOP_MODEM);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_STOP_MODEM\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_STOP_MODEM: No MAC instance available for instance %ld\n", instance);
@@ -456,6 +488,10 @@ void mac_trigger_reestab_for_first_rnti(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.mac_trigger_reestab_for_first_rnti.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_MAC_GNB, 0, MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI);
+  if (resp_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate response message for MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI\n");
+    return;
+  }
 
   if (!RC.nrmac || instance >= RC.nb_nr_macrlc_inst || !RC.nrmac[instance]) {
     LOG_E(NR_MAC, "MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI: No MAC instance available for instance %ld\n", instance);
