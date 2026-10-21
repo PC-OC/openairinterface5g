@@ -354,6 +354,11 @@ static int trigger_ngap_pdu_session_release(char *buf, int debug, telnet_printfu
     pdu_start_index = 1;
   } else {
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (msg_ue_rnti_p == NULL) {
+      LOG_E(NGAP, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
+      ERROR_MSG_RET("Need to provide ue_id for non-blocking mode\n");
+    }
+    msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
     ERROR_MSG_RET("Need to provide ue_id for non-blocking mode\n");
   }
@@ -448,7 +453,12 @@ static int set_pusch_target_snr(char *buf, int debug, telnet_printfunc_t prnt)
     ERROR_MSG_RET("error: could not parse number in '%s'\n", buf);
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_SET_PUSCH_TARGET_SNR);
+  if (msg_p == NULL) {
+    LOG_E(NR_MAC, "Failed to allocate message for MAC_SET_PUSCH_TARGET_SNR\n");
+    return -1;
+  }
   msg_p->ittiMsg.mac_set_pusch_target_snr.target_snrx10 = new_snr * 10;
+  msg_p->ittiMsg.mac_set_pusch_target_snr.client_idx = current_client_idx;
   itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   prnt("set new PUSCH target SNR %d for all UEs\n", new_snr);
 
