@@ -31,7 +31,6 @@
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt(mSG, ##aRGS); return -1; } while (0)
 
-// For multi-client support
 extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
 extern int current_client_idx;
 
