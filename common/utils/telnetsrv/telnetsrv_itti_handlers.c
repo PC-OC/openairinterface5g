@@ -56,31 +56,33 @@ void telnetsrv_handle_rrc_get_single_ue_rnti(Rrc_get_single_ue_rnti *rrc_msg)
       int reestab = rrc_msg->ue_reestablishment_counter;
       int reconfig = rrc_msg->ue_reconfiguration_counter;
 
-      if (client_idx >= 0 && telnet_clients[client_idx].pending_du_by_ue_id) {
-        MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_DU_ID_BY_UE_ID);
-        msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id = ue_id;
-        msg_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx = client_idx;
-        itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
-      } else if (client_idx >= 0 && telnet_clients[client_idx].pending_f1_ho) {
-        MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_F1_HO_TRIGGER);
-        msg_p->ittiMsg.rrc_trigger_f1_ho.id = ue_id;
-        msg_p->ittiMsg.rrc_trigger_f1_ho.client_idx = client_idx;
-        itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
-        TELNET_PRINT_TO_CLIENT(client_idx, "RRC F1 handover triggered for UE %u\n",
-                               ue_id);
-      } else if (client_idx >= 0 && telnet_clients[client_idx].pending_reestab) {
-        nr_rlc_test_trigger_reestablishment(ue_id);
-        if (rnti != ue_id) {
-          nr_rlc_test_trigger_reestablishment(rnti);
+      if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
+        if (telnet_clients[client_idx].pending_du_by_ue_id) {
+          MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_DU_ID_BY_UE_ID);
+          msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id = ue_id;
+          msg_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx = client_idx;
+          itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+        } else if (telnet_clients[client_idx].pending_f1_ho) {
+          MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_F1_HO_TRIGGER);
+          msg_p->ittiMsg.rrc_trigger_f1_ho.id = ue_id;
+          msg_p->ittiMsg.rrc_trigger_f1_ho.client_idx = client_idx;
+          itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+          TELNET_PRINT_TO_CLIENT(client_idx, "RRC F1 handover triggered for UE %u\n",
+                                 ue_id);
+        } else if (telnet_clients[client_idx].pending_reestab) {
+          nr_rlc_test_trigger_reestablishment(ue_id);
+          if (rnti != ue_id) {
+            nr_rlc_test_trigger_reestablishment(rnti);
+          }
+          TELNET_PRINT_TO_CLIENT(client_idx,
+                                 "Reset RLC counters of UE RNTI %04x to trigger reestablishment\n",
+                                 rnti);
+        } else if (telnet_clients[client_idx].pending_reestab_count) {
+          TELNET_PRINT_TO_CLIENT(client_idx, "UE RNTI %04x reestab %d reconfig %d\n",
+                                 rnti, reestab, reconfig);
+        } else {
+          TELNET_PRINT_TO_CLIENT(client_idx, "single UE RNTI %04x\n", rnti);
         }
-        TELNET_PRINT_TO_CLIENT(client_idx,
-                               "Reset RLC counters of UE RNTI %04x to trigger reestablishment\n",
-                               rnti);
-      } else if (client_idx >= 0 && telnet_clients[client_idx].pending_reestab_count) {
-        TELNET_PRINT_TO_CLIENT(client_idx, "UE RNTI %04x reestab %d reconfig %d\n",
-                               rnti, reestab, reconfig);
-      } else {
-        TELNET_PRINT_TO_CLIENT(client_idx, "single UE RNTI %04x\n", rnti);
       }
     } else {
       TELNET_PRINT_TO_CLIENT(client_idx, "UE count is not exactly one in RRC\n");
@@ -89,7 +91,7 @@ void telnetsrv_handle_rrc_get_single_ue_rnti(Rrc_get_single_ue_rnti *rrc_msg)
     TELNET_PRINT_TO_CLIENT(client_idx, "no RRC present\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS) {
+  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
     telnet_clients[client_idx].pending_reestab = false;
     telnet_clients[client_idx].pending_reestab_count = false;
     telnet_clients[client_idx].pending_f1_ho = false;
@@ -271,7 +273,7 @@ void telnetsrv_handle_mac_get_ue_rnti(Mac_get_ue_rnti *mac_msg)
   }
 
   // Reset pending flags
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS) {
+  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
     telnet_clients[client_idx].pending_reestab = false;
     telnet_clients[client_idx].pending_ul_failure = false;
     telnet_clients[client_idx].pending_ue_release = false;

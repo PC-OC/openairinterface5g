@@ -31,6 +31,19 @@
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt(mSG, ##aRGS); return -1; } while (0)
 
+static inline void reset_current_client_pending_state(void) {
+  if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
+    telnet_clients[current_client_idx].pending_reestab = false;
+    telnet_clients[current_client_idx].pending_reestab_count = false;
+    telnet_clients[current_client_idx].pending_f1_ho = false;
+    telnet_clients[current_client_idx].pending_du_by_ue_id = false;
+    telnet_clients[current_client_idx].pending_ul_failure = false;
+    telnet_clients[current_client_idx].pending_ue_release = false;
+    telnet_clients[current_client_idx].pending_bwp_info = false;
+    telnet_clients[current_client_idx].pending_bwp_id = -1;
+  }
+}
+
 extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
 extern int current_client_idx;
 
@@ -40,9 +53,7 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
   if (buf)
     ERROR_MSG_RET("no parameter allowed\n");
 
-  if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
-    telnet_clients[current_client_idx].pending_reestab = false;
-  }
+  reset_current_client_pending_state();
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
   if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
     msg_p->ittiMsg.mac_get_ue_rnti.client_idx = current_client_idx;
@@ -54,6 +65,8 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
 int get_reestab_count(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
       telnet_clients[current_client_idx].pending_reestab_count = true;
@@ -82,6 +95,8 @@ int get_reestab_count(char *buf, int debug, telnet_printfunc_t prnt)
 int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
       telnet_clients[current_client_idx].pending_reestab = true;
@@ -106,6 +121,7 @@ int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
 int fetch_du_by_ue_id(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
 
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
@@ -139,6 +155,8 @@ int fetch_du_by_ue_id(char *buf, int debug, telnet_printfunc_t prnt)
 int rrc_gNB_trigger_f1_ho(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (buf) {
     long parsed_id = strtol(buf, NULL, 10);
     if (parsed_id < 0)
@@ -207,6 +225,8 @@ int rrc_gNB_trigger_n2_ho(char *buf, int debug, telnet_printfunc_t prnt)
 int force_ul_failure(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
       telnet_clients[current_client_idx].pending_ul_failure = true;
@@ -235,6 +255,8 @@ int force_ul_failure(char *buf, int debug, telnet_printfunc_t prnt)
 int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
       telnet_clients[current_client_idx].pending_ue_release = true;
@@ -271,6 +293,8 @@ int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
 static int get_current_bwp(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   if (!buf) {
     if (current_client_idx >= 0 && current_client_idx < TELNET_MAX_CLIENTS) {
       telnet_clients[current_client_idx].pending_bwp_info = true;
@@ -374,6 +398,8 @@ static int trigger_ngap_pdu_session_release(char *buf, int debug, telnet_printfu
 static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
+  reset_current_client_pending_state();
+  
   char *sbwpId = strtok(buf, " ");
   if (!sbwpId) {
     ERROR_MSG_RET("Missing BWP ID\n");

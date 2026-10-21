@@ -69,6 +69,19 @@ static notifiedFIFO_t telnet_cmdrespq;
 #define TELNETSRV_OPTNAME_STATICMOD   "staticmod"
 #define TELNETSRV_OPTNAME_SHRMOD      "shrmod"
 
+static void telnet_reset_client_pending_state(int client_idx) {
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS) return;
+
+  telnet_clients[client_idx].pending_reestab = false;
+  telnet_clients[client_idx].pending_reestab_count = false;
+  telnet_clients[client_idx].pending_f1_ho = false;
+  telnet_clients[client_idx].pending_du_by_ue_id = false;
+  telnet_clients[client_idx].pending_ul_failure = false;
+  telnet_clients[client_idx].pending_ue_release = false;
+  telnet_clients[client_idx].pending_bwp_info = false;
+  telnet_clients[client_idx].pending_bwp_id = -1;
+}
+
 static int telnet_add_client(int sock) {
   pthread_mutex_lock(&telnet_clients_mutex);
   for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
@@ -76,14 +89,7 @@ static int telnet_add_client(int sock) {
       telnet_clients[i].socket = sock;
       telnet_clients[i].active = true;
       // Initialize pending state
-      telnet_clients[i].pending_reestab = false;
-      telnet_clients[i].pending_reestab_count = false;
-      telnet_clients[i].pending_f1_ho = false;
-      telnet_clients[i].pending_du_by_ue_id = false;
-      telnet_clients[i].pending_ul_failure = false;
-      telnet_clients[i].pending_ue_release = false;
-      telnet_clients[i].pending_bwp_info = false;
-      telnet_clients[i].pending_bwp_id = -1;
+      telnet_reset_client_pending_state(i);
       num_telnet_clients++;
       pthread_mutex_unlock(&telnet_clients_mutex);
       return i;
@@ -101,6 +107,7 @@ static void telnet_remove_client(int client_idx) {
     close(telnet_clients[client_idx].socket);
     telnet_clients[client_idx].socket = -1;
     telnet_clients[client_idx].active = false;
+    telnet_reset_client_pending_state(client_idx);
     num_telnet_clients--;
   }
   pthread_mutex_unlock(&telnet_clients_mutex);
@@ -123,6 +130,7 @@ static void telnet_cleanup_all_clients(void) {
       close(telnet_clients[i].socket);
       telnet_clients[i].socket = -1;
       telnet_clients[i].active = false;
+      telnet_reset_client_pending_state(i);
     }
   }
   num_telnet_clients = 0;
