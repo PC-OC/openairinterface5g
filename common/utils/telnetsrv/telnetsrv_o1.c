@@ -76,7 +76,7 @@ static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
     LOG_E(NR_MAC, "Failed to allocate message for MAC_GET_O1_STATS\n");
     return 1;
   }
-  msg_p->ittiMsg.mac_get_o1_stats.client_idx = current_client_idx;
+  msg_p->ittiMsg.mac_get_o1_stats.client_idx = telnetsrv_get_current_client_idx();
   itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   
   prnt("OK\n");
@@ -195,7 +195,7 @@ static int set_bwconfig(char *buf, int debug, telnet_printfunc_t prnt)
     return 1;
   }
   msg_p->ittiMsg.mac_set_bwconfig.bw_value = bw_value;
-  msg_p->ittiMsg.mac_set_bwconfig.client_idx = current_client_idx;
+  msg_p->ittiMsg.mac_set_bwconfig.client_idx = telnetsrv_get_current_client_idx();
   itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   
   prnt("OK\n");
@@ -215,7 +215,7 @@ static int stop_modem(char *buf, int debug, telnet_printfunc_t prnt)
     LOG_E(NR_MAC, "Failed to allocate message for MAC_STOP_MODEM\n");
     return 1;
   }
-  msg_p->ittiMsg.mac_stop_modem.client_idx = current_client_idx;
+  msg_p->ittiMsg.mac_stop_modem.client_idx = telnetsrv_get_current_client_idx();
   itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   
   prnt("OK\n");

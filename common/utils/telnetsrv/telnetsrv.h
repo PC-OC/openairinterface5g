@@ -83,7 +83,6 @@ typedef struct {
 
 #ifdef TELNETSERVERCODE
 extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
-extern int current_client_idx;
 #endif
 
 typedef struct cmddef {
@@ -157,6 +156,7 @@ typedef struct {
      int histsize;                   // command history length
      char *logfile; // filename to use when redirecting output to file
      int new_socket;                 // socket of the client connection
+     int current_client_idx;         // current client index for command processing
      int logfilefd;                  // file id of the log file when log output is redirected to a file
      int  saved_stdout;              // file id of the previous stdout, used to be able to restore original stdout
      cmdparser_t CmdParsers[TELNET_MAXCMD];   // array of registered modules.
@@ -169,6 +169,13 @@ typedef struct {
      unsigned int   phyprntbuff_size;     // for phy module,  dump_eNB_stats function buffer size
 } telnetsrv_params_t;
 
+#ifdef TELNETSERVERCODE
+extern telnetsrv_params_t telnetparams;
+
+static inline int telnetsrv_get_current_client_idx(void) {
+  return telnetparams.current_client_idx;
+}
+#endif
 
 typedef void(*settelnetmodule_t)(char *name, void *ptr);
 

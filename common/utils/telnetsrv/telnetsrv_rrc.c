@@ -61,7 +61,7 @@ int rrc_gNB_trigger_release(char *buf, int debug, telnet_printfunc_t prnt)
       return 1;
     }
     msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id = ue_id;
-    msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     prnt("RRC Release triggered for UE %u\n", ue_id);
   } else {
@@ -70,7 +70,7 @@ int rrc_gNB_trigger_release(char *buf, int debug, telnet_printfunc_t prnt)
       LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
       return 1;
     }
-    msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
   }
 
@@ -89,7 +89,7 @@ int rrc_gNB_trigger_release_all(char *buf, int debug, telnet_printfunc_t prnt)
     LOG_E(RRC, "Failed to allocate message for RRC_GNB_GENERATE_RRCRELEASE_ALL\n");
     return 1;
   }
-  msg_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.client_idx = current_client_idx;
+  msg_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.client_idx = telnetsrv_get_current_client_idx();
   itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   return 0;
 }
@@ -105,7 +105,7 @@ static int rrc_gNB_trigger_ue_context_release_req(char *buf, int debug, telnet_p
       LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
       return 1;
     }
-    msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
+    msg_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
     return 0;
   } else {
@@ -122,7 +122,7 @@ static int rrc_gNB_trigger_ue_context_release_req(char *buf, int debug, telnet_p
       return 1;
     }
     msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id = ue_id;
-    msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx = current_client_idx;
+    msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx = telnetsrv_get_current_client_idx();
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     prnt("Sent NGAP UE Context Release Request\n");
     return 0;
