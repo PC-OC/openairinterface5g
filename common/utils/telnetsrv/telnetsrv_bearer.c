@@ -25,6 +25,11 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
     ERROR_MSG_RET("no parameter allowed\n");
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+  if (msg_p == NULL) {
+    LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
+    return 1;
+  }
+  msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
   itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   return 0;
 }
@@ -35,6 +40,11 @@ int add_bearer(char *buf, int debug, telnet_printfunc_t prnt)
   UNUSED(debug);
   if (!buf) {
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (msg_p == NULL) {
+      LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
+      return 1;
+    }
+    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -43,7 +53,12 @@ int add_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU);
+    if (msg_p == NULL) {
+      LOG_E(RRC, "Failed to allocate message for RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU\n");
+      return 1;
+    }
     msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = rnti;
+    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = current_client_idx;
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   //rrc_gNB_trigger_new_bearer(rnti);
     prnt("called rrc_gNB_trigger_new_bearer(%04x)\n", rnti);
@@ -57,6 +72,11 @@ int release_bearer(char *buf, int debug, telnet_printfunc_t prnt)
   UNUSED(debug);
   if (!buf) {
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (msg_p == NULL) {
+      LOG_E(RRC, "Failed to allocate message for RRC_GET_SINGLE_UE_RNTI\n");
+      return 1;
+    }
+    msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = current_client_idx;
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
     return 0;
   } else {
@@ -65,7 +85,12 @@ int release_bearer(char *buf, int debug, telnet_printfunc_t prnt)
       ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
     MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU);
+    if (msg_p == NULL) {
+      LOG_E(RRC, "Failed to allocate message for RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU\n");
+      return 1;
+    }
     msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = rnti;
+    msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx = current_client_idx;
     itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   //rrc_gNB_trigger_release_bearer(rnti);
     prnt("called rrc_gNB_trigger_release_bearer(%04x)\n", rnti);
