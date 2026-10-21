@@ -45,8 +45,8 @@ void telnetsrv_handle_rrc_get_single_ue_rnti(Rrc_get_single_ue_rnti *rrc_msg)
   int client_idx = rrc_msg->client_idx;
 
   if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
-    // Invalid client, use default output
-    client_idx = -1;
+    LOG_D(ITTI, "Received RRC_GET_SINGLE_UE_RNTI for invalid client %d, ignoring\n", client_idx);
+    return;
   }
 
   if (rrc_msg->has_rrc) {
@@ -91,17 +91,20 @@ void telnetsrv_handle_rrc_get_single_ue_rnti(Rrc_get_single_ue_rnti *rrc_msg)
     TELNET_PRINT_TO_CLIENT(client_idx, "no RRC present\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
-    telnet_clients[client_idx].pending_reestab = false;
-    telnet_clients[client_idx].pending_reestab_count = false;
-    telnet_clients[client_idx].pending_f1_ho = false;
-    telnet_clients[client_idx].pending_du_by_ue_id = false;
-  }
+  telnet_clients[client_idx].pending_reestab = false;
+  telnet_clients[client_idx].pending_reestab_count = false;
+  telnet_clients[client_idx].pending_f1_ho = false;
+  telnet_clients[client_idx].pending_du_by_ue_id = false;
 }
 
 void telnetsrv_handle_mac_trigger_reestab_for_first_rnti(Mac_trigger_reestab_for_first_rnti *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   if (mac_msg->has_rnti) {
     TELNET_PRINT_TO_CLIENT(client_idx,
@@ -112,14 +115,17 @@ void telnetsrv_handle_mac_trigger_reestab_for_first_rnti(Mac_trigger_reestab_for
                            "Failed to trigger reestablishment: no UE found\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
-    telnet_clients[client_idx].pending_reestab = false;
-  }
+  telnet_clients[client_idx].pending_reestab = false;
 }
 
 void telnetsrv_handle_rrc_get_ue_context_by_ue_id(Rrc_get_single_ue_rnti *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GET_UE_CONTEXT_BY_UE_ID for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   if (rrc_msg->is_single) {
     TELNET_PRINT_TO_CLIENT(client_idx,
@@ -131,14 +137,17 @@ void telnetsrv_handle_rrc_get_ue_context_by_ue_id(Rrc_get_single_ue_rnti *rrc_ms
     TELNET_PRINT_TO_CLIENT(client_idx, "could not find UE with ue_id in RRC\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
-    telnet_clients[client_idx].pending_reestab_count = false;
-  }
+  telnet_clients[client_idx].pending_reestab_count = false;
 }
 
 void telnetsrv_handle_rrc_get_du_id_by_ue_id(Rrc_get_du_id_by_ue_id *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GET_DU_ID_BY_UE_ID for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   if (!rrc_msg->no_du) {
     TELNET_PRINT_TO_CLIENT(client_idx, "gNB_DU_id %d is connected to ue_id %d\n",
@@ -153,6 +162,11 @@ void telnetsrv_handle_rrc_check_ue_context(Rrc_check_ue_context *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_CHECK_UE_CONTEXT for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   if (!rrc_msg->check) {
     TELNET_PRINT_TO_CLIENT(client_idx, "UE with id %d not found\n",
                            rrc_msg->id);
@@ -162,6 +176,11 @@ void telnetsrv_handle_rrc_check_ue_context(Rrc_check_ue_context *rrc_msg)
 void telnetsrv_handle_rrc_get_ue_context_by_rnti_any_du(Rrc_get_ue_context_by_rnti_any_du *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   if (!rrc_msg->ue_context_exists) {
     TELNET_PRINT_TO_CLIENT(client_idx, "could not find UE with RNTI %04x\n",
@@ -176,6 +195,11 @@ void telnetsrv_handle_rrc_get_ngap_ue_id(Rrc_get_ngap_ue_id *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GET_NGAP_UE_ID for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   TELNET_PRINT_TO_CLIENT(client_idx,
                          "NGAP UE ID: gNB_ue_ngap_id=%u, amf_ue_ngap_id=%u\n",
                          rrc_msg->gNB_ue_ngap_id,
@@ -186,6 +210,11 @@ void telnetsrv_handle_rrc_gnb_generate_rrcrelease(Rrc_gnb_generate_rrcrelease *r
 {
   int client_idx = rrc_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GNB_GENERATE_RRCRELEASE for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   UNUSED(rrc_msg);
   TELNET_PRINT_TO_CLIENT(client_idx, "RRC Release triggered\n");
 }
@@ -194,6 +223,11 @@ void telnetsrv_handle_rrc_gnb_generate_rrcrelease_all(Rrc_gnb_generate_rrcreleas
 {
   int client_idx = rrc_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GNB_GENERATE_RRCRELEASE_ALL for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   TELNET_PRINT_TO_CLIENT(client_idx, "RRC Release triggered for all UEs (%d releases)\n",
                          rrc_msg->nb_releases);
 }
@@ -201,6 +235,11 @@ void telnetsrv_handle_rrc_gnb_generate_rrcrelease_all(Rrc_gnb_generate_rrcreleas
 void telnetsrv_handle_rrc_gnb_trigger_ue_context_release_req(Rrc_gnb_trigger_ue_context_release_req *rrc_msg)
 {
   int client_idx = rrc_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   TELNET_PRINT_TO_CLIENT(client_idx,
                          "Sent NGAP UE Context Release Request for UE ID %u (rrc_ue_context=%s, ngap_ue_context=%s)\n",
@@ -214,12 +253,7 @@ void telnetsrv_handle_mac_get_ue_rnti(Mac_get_ue_rnti *mac_msg)
   int client_idx = mac_msg->client_idx;
 
   if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
-    // Invalid client, use default output
-    if (mac_msg->has_mac) {
-      TELNET_PRINT_TO_CLIENT(client_idx, "single UE RNTI %04x\n", mac_msg->rnti);
-    } else {
-      TELNET_PRINT_TO_CLIENT(client_idx, "no MAC/RLC present\n");
-    }
+    LOG_D(ITTI, "Received MAC_GET_UE_RNTI for invalid client %d, ignoring\n", client_idx);
     return;
   }
 
@@ -273,18 +307,21 @@ void telnetsrv_handle_mac_get_ue_rnti(Mac_get_ue_rnti *mac_msg)
   }
 
   // Reset pending flags
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
-    telnet_clients[client_idx].pending_reestab = false;
-    telnet_clients[client_idx].pending_ul_failure = false;
-    telnet_clients[client_idx].pending_ue_release = false;
-    telnet_clients[client_idx].pending_bwp_info = false;
-    telnet_clients[client_idx].pending_bwp_id = -1;
-  }
+  telnet_clients[client_idx].pending_reestab = false;
+  telnet_clients[client_idx].pending_ul_failure = false;
+  telnet_clients[client_idx].pending_ue_release = false;
+  telnet_clients[client_idx].pending_bwp_info = false;
+  telnet_clients[client_idx].pending_bwp_id = -1;
 }
 
 void telnetsrv_handle_mac_get_ue_rnti_by_uid(Mac_get_ue_rnti_by_uid *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_GET_UE_RNTI_BY_UID for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   if (mac_msg->has_mac) {
     TELNET_PRINT_TO_CLIENT(client_idx, "UE RNTI %04x for UID %u\n",
@@ -298,6 +335,12 @@ void telnetsrv_handle_mac_get_ue_rnti_by_uid(Mac_get_ue_rnti_by_uid *mac_msg)
 void telnetsrv_handle_mac_get_ue_bwp_info(Mac_get_ue_bwp_info *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_GET_UE_BWP_INFO for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   rnti_t rnti = mac_msg->rnti;
   int dl_bwp = mac_msg->dl_bwp_id;
   int ul_bwp = mac_msg->ul_bwp_id;
@@ -322,6 +365,11 @@ void telnetsrv_handle_mac_force_ul_failure(Mac_force_ul_failure *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_FORCE_UL_FAILURE for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   UNUSED(mac_msg);
   TELNET_PRINT_TO_CLIENT(client_idx, "UL failure triggered\n");
 }
@@ -329,6 +377,11 @@ void telnetsrv_handle_mac_force_ul_failure(Mac_force_ul_failure *mac_msg)
 void telnetsrv_handle_mac_force_ue_release(Mac_force_ue_release *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_FORCE_UE_RELEASE for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   UNUSED(mac_msg);
   TELNET_PRINT_TO_CLIENT(client_idx, "UE release triggered\n");
@@ -338,6 +391,11 @@ void telnetsrv_handle_mac_set_pusch_target_snr(Mac_set_pusch_target_snr *mac_msg
 {
   int client_idx = mac_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_SET_PUSCH_TARGET_SNR for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   UNUSED(mac_msg);
   TELNET_PRINT_TO_CLIENT(client_idx, "PUSCH target SNR set\n");
 }
@@ -345,6 +403,11 @@ void telnetsrv_handle_mac_set_pusch_target_snr(Mac_set_pusch_target_snr *mac_msg
 void telnetsrv_handle_mac_set_bwconfig(Mac_set_bwconfig *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_SET_BWCONFIG for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
 
   UNUSED(mac_msg);
   TELNET_PRINT_TO_CLIENT(client_idx, "OK\n");
@@ -354,6 +417,11 @@ void telnetsrv_handle_mac_stop_modem(Mac_stop_modem *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
 
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_STOP_MODEM for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   UNUSED(mac_msg);
   telnetsrv_o1_running = false;
   TELNET_PRINT_TO_CLIENT(client_idx, "OK\n");
@@ -362,6 +430,12 @@ void telnetsrv_handle_mac_stop_modem(Mac_stop_modem *mac_msg)
 void telnetsrv_handle_mac_get_o1_stats(Mac_get_o1_stats *mac_msg)
 {
   int client_idx = mac_msg->client_idx;
+
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
+    LOG_D(ITTI, "Received MAC_GET_O1_STATS for invalid client %d, ignoring\n", client_idx);
+    return;
+  }
+
   Mac_get_o1_stats *current = mac_msg;
 
   static uint64_t last_dl_used = 0;

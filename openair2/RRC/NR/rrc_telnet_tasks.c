@@ -48,6 +48,10 @@ void rrc_get_single_ue_rnti(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_get_single_ue_rnti.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GET_SINGLE_UE_RNTI\n");
+    return;
+  }
   rrc_get_single_ue_rnti_helper(&resp_p, instance);
   resp_p->ittiMsg.rrc_get_single_ue_rnti.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
@@ -58,6 +62,10 @@ void rrc_get_ue_context_by_rnti_any_du(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU\n");
+    return;
+  }
   resp_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti = msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti;
   resp_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.ue_context_exists =
       (rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[instance], msg_p->ittiMsg.rrc_get_ue_context_by_rnti_any_du.rnti, -1) != NULL);
@@ -70,6 +78,10 @@ void rrc_check_ue_context(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_check_ue_context.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_CHECK_UE_CONTEXT);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_CHECK_UE_CONTEXT\n");
+    return;
+  }
   resp_p->ittiMsg.rrc_check_ue_context.id = msg_p->ittiMsg.rrc_check_ue_context.id;
   if (RC.nrrrc[instance] != NULL) {
     rrc_gNB_ue_context_t *ue = rrc_gNB_get_ue_context(RC.nrrrc[instance], msg_p->ittiMsg.rrc_check_ue_context.id);
@@ -111,6 +123,10 @@ void rrc_get_ue_context_by_ue_id(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_get_ue_context_by_ue_id.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_UE_CONTEXT_BY_UE_ID);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GET_UE_CONTEXT_BY_UE_ID\n");
+    return;
+  }
   rrc_get_ue_context_by_ue_id_helper(&resp_p, msg_p->ittiMsg.rrc_get_ue_context_by_ue_id.id, instance);
   resp_p->ittiMsg.rrc_get_ue_context_by_ue_id.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
@@ -142,6 +158,10 @@ void rrc_get_du_id_by_ue_id(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_DU_ID_BY_UE_ID);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GET_DU_ID_BY_UE_ID\n");
+    return;
+  }
   rrc_get_du_id_by_ue_id_helper(&resp_p, msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id, instance);
   resp_p->ittiMsg.rrc_get_du_id_by_ue_id.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p);
@@ -166,11 +186,19 @@ void rrc_get_ngap_ue_id(MessageDef *msg_p, instance_t instance)
 
   if (msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id == -1) {
     MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (resp_p == NULL) {
+      LOG_E(RRC, "Failed to allocate response message for RRC_GET_SINGLE_UE_RNTI\n");
+      return;
+    }
     rrc_get_single_ue_rnti_helper(&resp_p, instance);
     msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id = resp_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_p);
+    itti_free(TASK_RRC_GNB, resp_p);
   }
   MessageDef *resp_p2 = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_NGAP_UE_ID);
+  if (resp_p2 == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GET_NGAP_UE_ID\n");
+    return;
+  }
   resp_p2->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id = msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id;
   ngap_gNB_ue_context_t *ngap_ue_context = ngap_get_ue_context(msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id);
   if (ngap_ue_context) {
@@ -189,9 +217,13 @@ void rrc_gnb_generate_rrcrelease(MessageDef *msg_p, instance_t instance)
 
   if (msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id == -1) {
     MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GET_SINGLE_UE_RNTI);
+    if (resp_p == NULL) {
+      LOG_E(RRC, "Failed to allocate response message for RRC_GET_SINGLE_UE_RNTI\n");
+      return;
+    }
     rrc_get_single_ue_rnti_helper(&resp_p, instance);
     msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id = resp_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_p);
+    itti_free(TASK_RRC_GNB, resp_p);
   }
   rrc_gNB_ue_context_t *ue = rrc_gNB_get_ue_context(RC.nrrrc[instance], msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id);
   if (ue != NULL) {
@@ -201,6 +233,10 @@ void rrc_gnb_generate_rrcrelease(MessageDef *msg_p, instance_t instance)
     LOG_E(RRC, "UE context not found for ue_id %lu\n", msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id);
   }
   MessageDef *resp_p2 = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_GENERATE_RRCRELEASE);
+  if (resp_p2 == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GNB_GENERATE_RRCRELEASE\n");
+    return;
+  }
   resp_p2->ittiMsg.rrc_gnb_generate_rrcrelease.client_idx = client_idx;
   itti_send_msg_to_task(msg_p->ittiMsgHeader.originTaskId, 0, resp_p2);
 }
@@ -210,6 +246,10 @@ void rrc_gnb_generate_rrcrelease_all(MessageDef *msg_p, instance_t instance)
   int client_idx = msg_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.client_idx;
 
   MessageDef * resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_GENERATE_RRCRELEASE_ALL);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GNB_GENERATE_RRCRELEASE_ALL\n");
+    return;
+  }
   rrc_gNB_ue_context_t *ue_context_p = NULL;
   int i=0;
   RB_FOREACH (ue_context_p, rrc_nr_ue_tree_s, &RC.nrrrc[instance]->rrc_ue_head) {
@@ -228,6 +268,10 @@ void rrc_gnb_trigger_ue_context_release_req(MessageDef *msg_p, instance_t instan
   int client_idx = msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.client_idx;
 
   MessageDef *resp_p = itti_alloc_new_message(TASK_RRC_GNB, 0, RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ);
+  if (resp_p == NULL) {
+    LOG_E(RRC, "Failed to allocate response message for RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ\n");
+    return;
+  }
   gNB_RRC_INST *rrc = RC.nrrrc[0];
   resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id = msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id;
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(rrc, msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id);
