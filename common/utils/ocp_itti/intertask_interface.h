@@ -411,20 +411,6 @@ extern "C" {
  **/
 int itti_send_msg_to_task(task_id_t task_id, instance_t instance, MessageDef *message);
 
-/** \brief Send a message to a task (could be itself)
-  \param sending_task_id Task ID
-  \param receiving_task_id Task ID
-  \param sending_message Pointer to the message to send
-  \param receiving_message Pointer to the message to receive
-  \param timeout_ms Timeout in milliseconds (-1 for infinite wait)
-  \return true if message received, false if timeout occurred
- **/
-bool itti_send_and_receive_msg_to_task(task_id_t sending_task_id,
-                                       task_id_t receiving_task_id,
-                                       MessageDef *sending_message,
-                                       MessageDef **receiving_message,
-                                       int timeout_ms);
-
 /** \brief Add a new fd to monitor.
    NOTE: it is up to the user to read data associated with the fd
     \param task_id Task ID of the receiving task
