@@ -31,6 +31,12 @@ typedef struct Rrc_get_du_id_by_ue_id_s {
 } Rrc_get_du_id_by_ue_id;
 #define RRC_GET_DU_ID_BY_UE_ID(mSGpTR) (mSGpTR)->ittiMsg.rrc_get_du_id_by_ue_id;
 
+typedef struct Mac_trigger_reestab_for_first_rnti_s {
+  rnti_t rnti;
+  bool has_rnti;
+} Mac_trigger_reestab_for_first_rnti;
+#define MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI(mSGpTR) (mSGpTR)->ittiMsg.mac_trigger_reestab_for_first_rnti;
+
 typedef struct Rrc_trigger_ho_s {
   ue_id_t id;
   uint32_t neighbour_pci;

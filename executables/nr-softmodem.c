@@ -563,6 +563,16 @@ int main( int argc, char **argv ) {
     AssertFatal(ret == 0, "cannot create ITTI tasks\n");
   }
 
+  if (g_telnetsrv_itti_start_hook != NULL) {
+    if (g_telnetsrv_itti_start_hook() < 0) {
+      LOG_E(GNB_APP, "Failed to start telnet server in ITTI mode\n");
+    }
+  } else if (g_telnetsrv_pthread_start_hook != NULL) {
+    if (g_telnetsrv_pthread_start_hook() < 0) {
+      LOG_E(GNB_APP, "Failed to start telnet server in pthread mode\n");
+    }
+  }
+
   pthread_cond_init(&sync_cond,NULL);
   pthread_mutex_init(&sync_mutex, NULL);
   usleep(1000);

@@ -996,7 +996,11 @@ void nr_rlc_test_trigger_reestablishment(int ue_id)
   /* we simply assume the SRB exists, because the scheduler creates it as soon
    * as the UE context is created. */
   nr_rlc_entity_t *ent = ue->srb[0];
-  ent->reestablishment(ent);
+  if (ent) {
+    ent->reestablishment(ent);
+  } else {
+    LOG_W(RLC, "SRB[0] is NULL for UE %04x, cannot trigger reestablishment\n", ue_id);
+  }
   /* Trigger re-establishment on OAI UE */
   nr_rlc_entity_t *drb = ue->drb[0];
   if (drb) {

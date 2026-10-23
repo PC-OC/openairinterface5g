@@ -22,6 +22,9 @@ char *worker_config=NULL;
 int usrp_tx_thread = 0;
 uint8_t nfapi_mode=0;
 
+telnetsrv_start_func_t g_telnetsrv_pthread_start_hook = NULL;
+telnetsrv_start_func_t g_telnetsrv_itti_start_hook = NULL;
+
 static struct timespec start;
 
 static softmodem_params_t softmodem_params;
@@ -87,6 +90,8 @@ void get_common_options(configmodule_interface_t *cfg)
 
   if (start_telnetsrv) {
     load_module_shlib("telnetsrv",NULL,0,NULL);
+    g_telnetsrv_pthread_start_hook = (telnetsrv_start_func_t)get_shlibmodule_fptr("telnetsrv", "telnetsrv_pthread_start");
+    g_telnetsrv_itti_start_hook = (telnetsrv_start_func_t)get_shlibmodule_fptr("telnetsrv", "telnetsrv_itti_start");
   }
 
   if (start_telnetclt) {

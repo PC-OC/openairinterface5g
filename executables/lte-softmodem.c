@@ -418,6 +418,16 @@ int main ( int argc, char **argv )
       exit(-1);
     }
 
+    if (g_telnetsrv_itti_start_hook != NULL) {
+      if (g_telnetsrv_itti_start_hook() < 0) {
+        printf("Failed to start telnet server in ITTI mode\n");
+      }
+    } else if (g_telnetsrv_pthread_start_hook != NULL) {
+      if (g_telnetsrv_pthread_start_hook() < 0) {
+        printf("Failed to start telnet server in pthread mode\n");
+      }
+    }
+
     for (int enb_id = 0; enb_id < RC.nb_inst; enb_id++) {
       MessageDef *msg_p = itti_alloc_new_message (TASK_ENB_APP, 0, RRC_CONFIGURATION_REQ);
       RRC_CONFIGURATION_REQ(msg_p) = RC.rrc[enb_id]->configuration;

@@ -38,12 +38,38 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include "common/utils/ocp_itti/intertask_interface.h"
+#include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
 
 #include "telnetsrv_phycmd.h"
 #include "telnetsrv_proccmd.h"
+#include "telnetsrv_itti_handlers.h"
 static char *telnet_defstatmod[] = {"softmodem","phy","loader","measur"};
 static telnetsrv_params_t telnetparams;
+
+static char telnetparams_listenaddr[CONFIG_MAXOPTLENGTH];
+static char telnetparams_histfile[CONFIG_MAXOPTLENGTH];
+static char telnetparams_logfile[CONFIG_MAXOPTLENGTH];
+
+#define TELNET_MAX_CLIENTS 10
+static int telnet_client_sockets[TELNET_MAX_CLIENTS];
+static int telnet_client_active[TELNET_MAX_CLIENTS];
+static int num_telnet_clients = 0;
+
+// Track pending commands that need additional action on response
+bool telnetsrv_pending_reestab = false;
+bool telnetsrv_pending_reestab_count = false;
+bool telnetsrv_pending_f1_ho = false;
+bool telnetsrv_pending_du_by_ue_id = false;
+bool telnetsrv_pending_ul_failure = false;
+bool telnetsrv_pending_ue_release = false;
+bool telnetsrv_pending_bwp_info = false;
+int telnetsrv_pending_bwp_id = -1;  // For trigger_bwp_switch
+
+// O1 modem state (defined here, extern in telnetsrv_o1.c)
+bool telnetsrv_o1_running = true;
+
+static pthread_mutex_t telnet_clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define TELNET_CMDQ_TIMEOUT_MS 200
 
@@ -52,6 +78,57 @@ static notifiedFIFO_t telnet_cmdrespq;
 
 #define TELNETSRV_OPTNAME_STATICMOD   "staticmod"
 #define TELNETSRV_OPTNAME_SHRMOD      "shrmod"
+
+static int telnet_add_client(int sock) {
+  pthread_mutex_lock(&telnet_clients_mutex);
+  for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
+    if (!telnet_client_active[i]) {
+      telnet_client_sockets[i] = sock;
+      telnet_client_active[i] = 1;
+      num_telnet_clients++;
+      pthread_mutex_unlock(&telnet_clients_mutex);
+      return i;
+    }
+  }
+  pthread_mutex_unlock(&telnet_clients_mutex);
+  return -1;
+}
+
+static void telnet_remove_client(int client_idx) {
+  if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS) return;
+  pthread_mutex_lock(&telnet_clients_mutex);
+  if (telnet_client_active[client_idx]) {
+    itti_unsubscribe_event_fd(TASK_TELNET, telnet_client_sockets[client_idx]);
+    close(telnet_client_sockets[client_idx]);
+    telnet_client_sockets[client_idx] = -1;
+    telnet_client_active[client_idx] = 0;
+    num_telnet_clients--;
+  }
+  pthread_mutex_unlock(&telnet_clients_mutex);
+}
+
+static int telnet_find_client(int sock) {
+  for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
+    if (telnet_client_active[i] && telnet_client_sockets[i] == sock) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+static void telnet_cleanup_all_clients(void) {
+  pthread_mutex_lock(&telnet_clients_mutex);
+  for (int i = 0; i < TELNET_MAX_CLIENTS; i++) {
+    if (telnet_client_active[i]) {
+      itti_unsubscribe_event_fd(TASK_TELNET, telnet_client_sockets[i]);
+      close(telnet_client_sockets[i]);
+      telnet_client_sockets[i] = -1;
+      telnet_client_active[i] = 0;
+    }
+  }
+  num_telnet_clients = 0;
+  pthread_mutex_unlock(&telnet_clients_mutex);
+}
 
 #define TELNET_LOG(fmt, ...)                               \
   do {                                                     \
@@ -65,19 +142,19 @@ paramdef_t telnetoptions[] = {
     /*                                            configuration parameters for telnet utility                                                                                      */
     /*   optname                              helpstr                paramflags           XXXptr                               defXXXval               type                 numelt */
     /*-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-    {"listenaddr", "<listen ip address>\n", 0, .strptr = &telnetparams.listenaddr, .defstrval = "0.0.0.0", TYPE_STRING, 0},
-    {"listenport", "<local port>\n", 0, .uptr = &telnetparams.listenport, .defuintval = 9090, TYPE_UINT, 0},
-    {"listenstdin", "enable input from stdin\n", PARAMFLAG_BOOL, .uptr = &telnetparams.listenstdin, .defuintval = 0, TYPE_UINT, 0},
-    {"priority", "<scheduling policy (0-99)\n", 0, .iptr = &telnetparams.priority, .defuintval = 0, TYPE_INT, 0},
-    {"debug", "<debug level>\n", 0, .uptr = NULL, .defuintval = 0, TYPE_UINT, 0},
-    {"loopcount", "<loop command iterations>\n", 0, .uptr = &telnetparams.loopcount, .defuintval = 10, TYPE_UINT, 0},
-    {"loopdelay", "<loop command delay (ms)>\n", 0, .uptr = &telnetparams.loopdelay, .defuintval = 5000, TYPE_UINT, 0},
-    {"histfile", "<history file name>\n", PARAMFLAG_NOFREE, .strptr = &telnetparams.histfile, .defstrval = "oaitelnet.history", TYPE_STRING, 0},
-    {"histsize", "<history sizes>\n", 0, .iptr = &telnetparams.histsize, .defuintval = 50, TYPE_INT, 0},
-    {"logfile", "log file when redirecting", PARAMFLAG_NOFREE, .strptr = &telnetparams.logfile, .defstrval = "oaisoftmodem.log", TYPE_STRING, 0},
-    {"phypbsize", "<phy dump buff size (bytes)>\n", 0, .uptr = &telnetparams.phyprntbuff_size, .defuintval = 65000, TYPE_UINT, 0},
-    {TELNETSRV_OPTNAME_STATICMOD, "<static modules selection>\n", 0, .strlistptr = NULL, .defstrlistval = telnet_defstatmod, TYPE_STRINGLIST, (sizeof(telnet_defstatmod) / sizeof(char *))},
-    {TELNETSRV_OPTNAME_SHRMOD, "<dynamic modules selection>\n", 0, .strlistptr = NULL, .defstrlistval = NULL, TYPE_STRINGLIST, 0}
+    {"listenaddr", "<listen ip address>\n", 0, .strptr = &telnetparams.listenaddr, .defstrval = "0.0.0.0", .type = TYPE_STRING, .numelt = CONFIG_MAXOPTLENGTH},
+    {"listenport", "<local port>\n", 0, .uptr = &telnetparams.listenport, .defuintval = 9090, .type = TYPE_UINT, .numelt = 0},
+    {"listenstdin", "enable input from stdin\n", PARAMFLAG_BOOL, .uptr = &telnetparams.listenstdin, .defuintval = 0, .type = TYPE_UINT, .numelt = 0},
+    {"priority", "<scheduling policy (0-99)\n", 0, .iptr = &telnetparams.priority, .defintval = 0, .type = TYPE_INT, .numelt = 0},
+    {"debug", "<debug level>\n", 0, .uptr = NULL, .defuintval = 0, .type = TYPE_UINT, .numelt = 0},
+    {"loopcount", "<loop command iterations>\n", 0, .uptr = &telnetparams.loopcount, .defuintval = 10, .type = TYPE_UINT, .numelt = 0},
+    {"loopdelay", "<loop command delay (ms)>\n", 0, .uptr = &telnetparams.loopdelay, .defuintval = 5000, .type = TYPE_UINT, .numelt = 0},
+    {"histfile", "<history file name>\n", PARAMFLAG_NOFREE, .strptr = &telnetparams.histfile, .defstrval = "oaitelnet.history", .type = TYPE_STRING, .numelt = CONFIG_MAXOPTLENGTH},
+    {"histsize", "<history sizes>\n", 0, .iptr = &telnetparams.histsize, .defintval = 50, .type = TYPE_INT, .numelt = 0},
+    {"logfile", "log file when redirecting", PARAMFLAG_NOFREE, .strptr = &telnetparams.logfile, .defstrval = "oaisoftmodem.log", .type = TYPE_STRING, .numelt = CONFIG_MAXOPTLENGTH},
+    {"phypbsize", "<phy dump buff size (bytes)>\n", 0, .uptr = &telnetparams.phyprntbuff_size, .defuintval = 65000, .type = TYPE_UINT, .numelt = 0},
+    {TELNETSRV_OPTNAME_STATICMOD, "<static modules selection>\n", 0, .strlistptr = NULL, .defstrlistval = telnet_defstatmod, .type = TYPE_STRINGLIST, .numelt = (sizeof(telnet_defstatmod) / sizeof(char *))},
+    {TELNETSRV_OPTNAME_SHRMOD, "<dynamic modules selection>\n", 0, .strlistptr = NULL, .defstrlistval = NULL, .type = TYPE_STRINGLIST, .numelt = 0}
 };
 // clang-format on
 
@@ -660,7 +737,8 @@ int process_command(char *buf)
   return rt;
 }
 
-void run_telnetsrv(void) {
+void *run_telnetsrv(void *arg) {
+  UNUSED(arg);
   int sock;
   char buf[TELNET_MAX_MSGLENGTH];
   struct sockaddr cli_addr;
@@ -796,10 +874,11 @@ void run_telnetsrv(void) {
   }
 
   close(sock);
-  return;
+  return NULL;
 }
 
-void run_telnetclt(void) {
+void *run_telnetclt(void *arg) {
+  UNUSED(arg);
   int sock;
   struct sockaddr_in name;
   pthread_setname_np(pthread_self(), "telnetclt");
@@ -867,8 +946,299 @@ void run_telnetclt(void) {
     }
     close(sock);
     }
-  return;
+  return NULL;
 } /* run_telnetclt */
+
+void *run_telnetsrv_itti(void *arg) {
+  UNUSED(arg);
+  int sock;
+  char buf[TELNET_MAX_MSGLENGTH];
+  struct sockaddr cli_addr;
+  unsigned int cli_len = sizeof(cli_addr);
+  int readc, filled;
+  int status;
+  int optval = 1;
+  char prompt[sizeof(TELNET_PROMPT_PREFIX)+10];
+
+  pthread_setname_np(pthread_self(), "telnet_itti");
+  set_sched(pthread_self(),0,telnetparams.priority);
+
+  struct addrinfo hints = {
+    .ai_family = AF_UNSPEC,
+    .ai_socktype = SOCK_STREAM,
+    .ai_flags = AI_NUMERICHOST,
+  };
+
+  struct addrinfo *res;
+  sock = -1;
+  char port_str[6];
+  snprintf(port_str, sizeof(port_str), "%u", telnetparams.listenport);
+
+  int ret = getaddrinfo(telnetparams.listenaddr, port_str, &hints, &res);
+  if (ret != 0) {
+    fprintf(stderr, "[TELNETSRV] Invalid listenaddr '%s': %s\n",
+            telnetparams.listenaddr, gai_strerror(ret));
+    exit(-1);
+  }
+
+  for (struct addrinfo *p = res; p != NULL; p = p-> ai_next){
+    sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (sock < 0) continue;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval);
+    if (bind(sock, p->ai_addr, p->ai_addrlen) == 0)
+      break;
+    close(sock);
+    sock = -1;
+  }
+
+  freeaddrinfo(res);
+
+  if (sock < 0) {
+    fprintf(stderr, "Failed to bind socket\n");
+    exit(-1);
+  }
+
+  if(listen(sock, 10) == -1)
+    fprintf(stderr,"[TELNETSRV] Error %s on listen call\n",strerror(errno));
+
+  int flags = fcntl(sock, F_GETFL, 0);
+  fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+  itti_subscribe_event_fd(TASK_TELNET, sock);
+
+  pthread_mutex_lock(&telnet_clients_mutex);
+  memset(telnet_client_sockets, -1, sizeof(telnet_client_sockets));
+  memset(telnet_client_active, 0, sizeof(telnet_client_active));
+  num_telnet_clients = 0;
+  pthread_mutex_unlock(&telnet_clients_mutex);
+
+  telnetparams.new_socket = -1;
+
+  using_history();
+  int plen = sprintf(prompt, "%s_%s> ", TELNET_PROMPT_PREFIX, get_softmodem_function());
+  TELNET_LOG("\nInitializing telnet server (event-driven mode)...\n");
+
+  while (1) {
+    MessageDef *msg = NULL;
+    itti_receive_msg(TASK_TELNET, &msg);
+
+    if (msg != NULL) {
+      TELNET_LOG("Received ITTI message: %s\n", itti_get_message_name(msg->ittiMsgHeader.messageId));
+
+      MessagesIds msg_id = ITTI_MSG_ID(msg);
+
+      switch (msg_id) {
+        case RRC_GET_SINGLE_UE_RNTI:
+          telnetsrv_handle_rrc_get_single_ue_rnti(&msg->ittiMsg.rrc_get_single_ue_rnti);
+          break;
+        case MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI:
+          telnetsrv_handle_mac_trigger_reestab_for_first_rnti(&msg->ittiMsg.mac_trigger_reestab_for_first_rnti);
+          break;
+        case RRC_GET_UE_CONTEXT_BY_UE_ID:
+          telnetsrv_handle_rrc_get_ue_context_by_ue_id(&msg->ittiMsg.rrc_get_ue_context_by_ue_id);
+          break;
+        case RRC_GET_DU_ID_BY_UE_ID:
+          telnetsrv_handle_rrc_get_du_id_by_ue_id(&msg->ittiMsg.rrc_get_du_id_by_ue_id);
+          break;
+        case RRC_CHECK_UE_CONTEXT:
+          telnetsrv_handle_rrc_check_ue_context(&msg->ittiMsg.rrc_check_ue_context);
+          break;
+        case RRC_GET_UE_CONTEXT_BY_RNTI_ANY_DU:
+          telnetsrv_handle_rrc_get_ue_context_by_rnti_any_du(&msg->ittiMsg.rrc_get_ue_context_by_rnti_any_du);
+          break;
+        case RRC_GET_NGAP_UE_ID:
+          telnetsrv_handle_rrc_get_ngap_ue_id(&msg->ittiMsg.rrc_get_ngap_ue_id);
+          break;
+        case RRC_GNB_GENERATE_RRCRELEASE:
+          telnetsrv_handle_rrc_gnb_generate_rrcrelease(&msg->ittiMsg.rrc_gnb_generate_rrcrelease);
+          break;
+        case RRC_GNB_GENERATE_RRCRELEASE_ALL:
+          telnetsrv_handle_rrc_gnb_generate_rrcrelease_all(&msg->ittiMsg.rrc_gnb_generate_rrcrelease_all);
+          break;
+        case RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ:
+          telnetsrv_handle_rrc_gnb_trigger_ue_context_release_req(&msg->ittiMsg.rrc_gnb_trigger_ue_context_release_req);
+          break;
+        case MAC_GET_UE_RNTI:
+          telnetsrv_handle_mac_get_ue_rnti(&msg->ittiMsg.mac_get_ue_rnti);
+          break;
+        case MAC_GET_UE_RNTI_BY_UID:
+          telnetsrv_handle_mac_get_ue_rnti_by_uid(&msg->ittiMsg.mac_get_ue_rnti_by_uid);
+          break;
+        case MAC_GET_UE_BWP_INFO:
+          telnetsrv_handle_mac_get_ue_bwp_info(&msg->ittiMsg.mac_get_ue_bwp_info);
+          break;
+        case MAC_FORCE_UL_FAILURE:
+          telnetsrv_handle_mac_force_ul_failure(&msg->ittiMsg.mac_force_ul_failure);
+          break;
+        case MAC_FORCE_UE_RELEASE:
+          telnetsrv_handle_mac_force_ue_release(&msg->ittiMsg.mac_force_ue_release);
+          break;
+        case MAC_SET_PUSCH_TARGET_SNR:
+          telnetsrv_handle_mac_set_pusch_target_snr(&msg->ittiMsg.mac_set_pusch_target_snr);
+          break;
+        case MAC_SET_BWCONFIG:
+          telnetsrv_handle_mac_set_bwconfig(&msg->ittiMsg.mac_set_bwconfig);
+          break;
+        case MAC_STOP_MODEM:
+          telnetsrv_handle_mac_stop_modem(&msg->ittiMsg.mac_stop_modem);
+          break;
+        case MAC_GET_O1_STATS:
+          telnetsrv_handle_mac_get_o1_stats(&msg->ittiMsg.mac_get_o1_stats);
+          break;
+        default:
+          break;
+      }
+
+      itti_free(TASK_TELNET, msg);
+      continue;
+    }
+
+    struct epoll_event events[10];
+    int nb_events = itti_get_events(TASK_TELNET, events, 10);
+
+    if (nb_events <= 0) {
+      continue;
+    }
+
+    for (int i = 0; i < nb_events; i++) {
+      int fd = events[i].data.fd;
+
+      if (fd == sock) {
+        cli_len = sizeof(cli_addr);
+
+        while (1) {
+          int new_sock = accept(sock, &cli_addr, &cli_len);
+
+          if (new_sock >= 0) {
+            if (num_telnet_clients < TELNET_MAX_CLIENTS) {
+              TELNET_LOG("Telnet client connected....\n");
+
+              int new_flags = fcntl(new_sock, F_GETFL, 0);
+              fcntl(new_sock, F_SETFL, new_flags | O_NONBLOCK);
+
+              itti_subscribe_event_fd(TASK_TELNET, new_sock);
+
+              int client_idx = telnet_add_client(new_sock);
+              if (client_idx >= 0) {
+                if (num_telnet_clients == 1) {
+                  read_history(telnetparams.histfile);
+                  stifle_history(telnetparams.histsize);
+                }
+
+                send(new_sock, prompt, strlen(prompt), MSG_NOSIGNAL);
+              } else {
+                close(new_sock);
+                TELNET_LOG("Max clients reached, connection refused\n");
+              }
+            } else {
+              close(new_sock);
+              TELNET_LOG("Max clients reached, connection refused\n");
+            }
+          } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break;
+          } else {
+            fprintf(stderr, "[TELNETSRV] Error %s on accept call\n", strerror(errno));
+            break;
+          }
+        }
+      }
+      else {
+        int client_idx = telnet_find_client(fd);
+        if (client_idx >= 0) {
+          int client_sock = telnet_client_sockets[client_idx];
+          filled = 0;
+          memset(buf, 0, sizeof(buf));
+
+          while (filled < (TELNET_MAX_MSGLENGTH - 1)) {
+            readc = recv(client_sock, buf + filled, TELNET_MAX_MSGLENGTH - filled - 1, 0);
+
+            if (readc <= 0) {
+              if (readc == 0) {
+                TELNET_LOG("Telnet Client disconnected.\n");
+              } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                TELNET_LOG("Telnet Client error: %s\n", strerror(errno));
+              }
+
+              write_history(telnetparams.histfile);
+              clear_history();
+              telnet_remove_client(client_idx);
+
+              if (num_telnet_clients == 0) {
+                telnetparams.new_socket = -1;
+              }
+              TELNET_LOG("Telnet server waiting for connection...\n");
+              break;
+            }
+
+            filled += readc;
+
+            if (buf[filled - 1] == '\n') {
+              buf[filled - 1] = 0;
+              break;
+            }
+          }
+
+          if (readc > 0 && filled > 0) {
+            TELNET_LOG("Command received from client %d: readc %i filled %i \"%s\"\n",
+                      client_idx, readc, filled, buf);
+
+
+            telnetparams.new_socket = client_sock;
+
+            if (buf[0] == '!') {
+              if (buf[1] == '!') {
+                sprintf(buf, "%s", "telnet history list");
+              } else {
+                HIST_ENTRY *hisentry = history_get(strtol(buf + 1, NULL, 0));
+
+                if (hisentry) {
+                  char msg[TELNET_MAX_MSGLENGTH + plen + 10];
+                  sprintf(buf, "%s", hisentry->line);
+                  sprintf(msg, "%s %s\n", prompt, hisentry->line);
+                  send(client_sock, msg, strlen(msg), MSG_NOSIGNAL);
+                }
+              }
+            }
+
+            if (strlen(buf) > 2) {
+              status = process_command(buf);
+            } else {
+              status = CMDSTATUS_NOCMD;
+            }
+
+            if (status != CMDSTATUS_EXIT) {
+              if (status == CMDSTATUS_NOTFOUND) {
+                char msg[TELNET_MAX_MSGLENGTH + 50];
+                sprintf(msg, "Error: \n      %s\n is not a softmodem command\n", buf);
+                send(client_sock, msg, strlen(msg), MSG_NOSIGNAL);
+              } else if (status == CMDSTATUS_FOUND) {
+                add_history(buf);
+              }
+
+              send(client_sock, prompt, strlen(prompt), MSG_NOSIGNAL);
+            } else {
+              TELNET_LOG("Closing telnet connection...\n");
+              write_history(telnetparams.histfile);
+              clear_history();
+              telnet_remove_client(client_idx);
+
+              if (telnetparams.new_socket == client_sock) {
+                telnetparams.new_socket = -1;
+              }
+              TELNET_LOG("Telnet server waiting for connection...\n");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  telnet_cleanup_all_clients();
+
+  itti_unsubscribe_event_fd(TASK_TELNET, sock);
+  close(sock);
+  return NULL;
+}
 
 void poll_telnetcmdq(void *qid, void *arg)
 {
@@ -948,6 +1318,14 @@ int add_sharedmodules(void) {
 */
 int telnetsrv_autoinit(void) {
   memset(&telnetparams,0,sizeof(telnetparams));
+
+  memset(telnetparams_listenaddr, 0, CONFIG_MAXOPTLENGTH);
+  memset(telnetparams_histfile, 0, CONFIG_MAXOPTLENGTH);
+  memset(telnetparams_logfile, 0, CONFIG_MAXOPTLENGTH);
+  telnetparams.listenaddr = telnetparams_listenaddr;
+  telnetparams.histfile = telnetparams_histfile;
+  telnetparams.logfile = telnetparams_logfile;
+
   config_get(config_get_if(), telnetoptions, sizeofArray(telnetoptions), "telnetsrv");
   /* possibly load a exec specific shared lib */
   char *execfunc = get_softmodem_function();
@@ -955,10 +1333,7 @@ int telnetsrv_autoinit(void) {
   sprintf(libname,"telnetsrv_%s",execfunc);
   load_module_shlib(libname,NULL,0,NULL);
   initNotifiedFIFO(&telnet_cmdrespq);
-  if(pthread_create(&telnetparams.telnet_pthread,NULL, (void *(*)(void *))run_telnetsrv, NULL) != 0) {
-    fprintf(stderr,"[TELNETSRV] Error %s on pthread_create call\n",strerror(errno));
-    return -1;
-  }
+  telnetparams.new_socket = -1;
 
   add_telnetcmd("telnet", telnet_vardef, telnet_cmdarray);
   add_embeddedmodules();
@@ -968,6 +1343,24 @@ int telnetsrv_autoinit(void) {
       fprintf(stderr,"[TELNETSRV] Error %s on pthread_create f() run_telnetclt \n",strerror(errno));
     return -1;
     }
+  }
+  return 0;
+}
+
+int telnetsrv_itti_start(void) {
+  if (itti_create_task(TASK_TELNET, run_telnetsrv_itti, NULL) < 0) {
+    fprintf(stderr, "[TELNETSRV] Create task for TELNET server failed\n");
+    return -1;
+  }
+
+  TELNET_LOG("Telnet server started in ITTI event-driven mode\n");
+  return 0;
+}
+
+int telnetsrv_pthread_start(void) {
+  if(pthread_create(&telnetparams.telnet_pthread,NULL, (void *(*)(void *))run_telnetsrv, NULL) != 0) {
+    fprintf(stderr,"[TELNETSRV] Error %s on pthread_create call\n",strerror(errno));
+    return -1;
   }
   return 0;
 }
@@ -1029,7 +1422,7 @@ int  telnetsrv_checkbuildver(char *mainexec_buildversion, char **shlib_buildvers
 }
 
 int telnetsrv_getfarray(loader_shlibfunc_t  **farray) {
-  int const num_func_tln_srv = 3;
+  int const num_func_tln_srv = 5;
   *farray = calloc_or_fail(num_func_tln_srv, sizeof(loader_shlibfunc_t));
   (*farray)[0].fname=TELNET_ADDCMD_FNAME;
   (*farray)[0].fptr=(int (*)(void) )add_telnetcmd;
@@ -1037,7 +1430,11 @@ int telnetsrv_getfarray(loader_shlibfunc_t  **farray) {
   (*farray)[1].fptr = (int (*)(void))poll_telnetcmdq;
   (*farray)[2].fname = TELNET_PUSHCMD_FNAME;
   (*farray)[2].fptr = (int (*)(void))telnet_pushcmd;
-  return (3);
+  (*farray)[3].fname = "telnetsrv_pthread_start";
+  (*farray)[3].fptr = (int (*)(void))telnetsrv_pthread_start;
+  (*farray)[4].fname = "telnetsrv_itti_start";
+  (*farray)[4].fptr = (int (*)(void))telnetsrv_itti_start;
+  return (num_func_tln_srv);
 }
 /* for webserver interface, needs access to some telnet server paramaters */
 telnetsrv_params_t *get_telnetsrv_params(void)

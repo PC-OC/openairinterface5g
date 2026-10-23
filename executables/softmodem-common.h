@@ -319,6 +319,10 @@ extern uint8_t nfapi_mode;
 extern char *parallel_config;
 extern char *worker_config;
 
+typedef int (*telnetsrv_start_func_t)(void);
+extern telnetsrv_start_func_t g_telnetsrv_pthread_start_hook;
+extern telnetsrv_start_func_t g_telnetsrv_itti_start_hook;
+
 #ifdef __cplusplus
 }
 #endif

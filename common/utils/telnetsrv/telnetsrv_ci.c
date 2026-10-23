@@ -31,21 +31,14 @@
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt(mSG, ##aRGS); return -1; } while (0)
 
-static int get_single_ue_rnti_mac(telnet_printfunc_t prnt)
-{
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Get timedout calling MAC_GET_UE_RNTI\n");
-  }
-  if (!resp_p->ittiMsg.mac_get_ue_rnti.has_mac) {
-    free(resp_p);
-    ERROR_MSG_RET("no MAC/RLC present, cannot trigger reestablishment\n");
-  }
-  int rnti = resp_p->ittiMsg.mac_get_ue_rnti.rnti;
-  free(resp_p);
-  return rnti;
-}
+extern bool telnetsrv_pending_reestab;
+extern bool telnetsrv_pending_reestab_count;
+extern bool telnetsrv_pending_f1_ho;
+extern bool telnetsrv_pending_du_by_ue_id;
+extern bool telnetsrv_pending_ul_failure;
+extern bool telnetsrv_pending_ue_release;
+extern bool telnetsrv_pending_bwp_info;
+extern int telnetsrv_pending_bwp_id;
 
 int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
 {
@@ -53,87 +46,45 @@ int get_single_rnti(char *buf, int debug, telnet_printfunc_t prnt)
   if (buf)
     ERROR_MSG_RET("no parameter allowed\n");
 
-  int rnti = get_single_ue_rnti_mac(prnt);
-  if (rnti < 1)
-    ERROR_MSG_RET("different number of UEs\n");
-
-  prnt("single UE RNTI %04x\n", rnti);
+  telnetsrv_pending_reestab = false;
+  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+  itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   return 0;
-}
-
-int check_single_rrc_ue(MessageDef *resp_p, telnet_printfunc_t prnt)
-{
-  if(!resp_p->ittiMsg.rrc_get_single_ue_rnti.has_rrc){
-    prnt("no RRC present, cannot list counts\n");
-    return 0;
-  }
-  if (!resp_p->ittiMsg.rrc_get_single_ue_rnti.is_single) {
-    prnt("UE count is not exactly one in RRC\n");
-    return 0;
-  }
-  return 1;
 }
 
 int get_reestab_count(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf) {
+    telnetsrv_pending_reestab_count = true;
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-    MessageDef *resp_ue_rnti_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_rnti_p, &resp_ue_rnti_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if (!check_single_rrc_ue(resp_ue_rnti_p, prnt)) {
-      free(resp_ue_rnti_p);
-      return -1;
-    }
-    const Rrc_get_single_ue_rnti *resp = &resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti;
-    prnt("UE RNTI %04x reestab %d reconfig %d\n", resp->rnti, resp->ue_reestablishment_counter, resp->ue_reconfiguration_counter);
-    free(resp_ue_rnti_p);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
   } else {
     ue_id_t ue_id = strtol(buf, NULL, 10);
+    telnetsrv_pending_reestab_count = true;
     MessageDef *msg_ue_context_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_UE_CONTEXT_BY_UE_ID);
     msg_ue_context_p->ittiMsg.rrc_get_ue_context_by_ue_id.id = ue_id;
-    MessageDef *resp_ue_context_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_context_p, &resp_ue_context_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if (!resp_ue_context_p->ittiMsg.rrc_get_ue_context_by_ue_id.is_single) {
-      free(resp_ue_context_p);
-      ERROR_MSG_RET("could not find UE with ue_id %d in RRC\n");
-    }
-    const Rrc_get_single_ue_rnti *resp = &resp_ue_context_p->ittiMsg.rrc_get_ue_context_by_ue_id;
-    prnt("UE RNTI %04x reestab %d reconfig %d\n", resp->rnti, resp->ue_reestablishment_counter, resp->ue_reconfiguration_counter);
-    free(resp_ue_context_p);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_context_p);
   }
 
   return 0;
 }
 
-int fetch_rnti(char *buf, telnet_printfunc_t prnt)
-{
-  int rnti = -1;
-  if (!buf) {
-    rnti = get_single_ue_rnti_mac(prnt);
-    if (rnti < 1) {
-      return -1;
-    }
-  } else {
-    rnti = strtol(buf, NULL, 16);
-    if (rnti < 1 || rnti >= 0xfffe)
-      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
-  }
-  return rnti;
-}
-
 int trigger_reestab(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  int rnti = fetch_rnti(buf, prnt);
-  if (rnti < 0)
-    return -1;
-  nr_rlc_test_trigger_reestablishment(rnti);
-  prnt("Reset RLC counters of UE RNTI %04x to trigger reestablishment\n", rnti);
+  if (!buf) {
+    telnetsrv_pending_reestab = true;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_TRIGGER_REESTAB_FOR_FIRST_UE_RNTI);
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+  } else {
+    rnti_t rnti = strtol(buf, NULL, 16);
+    if (rnti < 1 || rnti >= 0xfffe)
+      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
+    nr_rlc_test_trigger_reestablishment(rnti);
+    prnt("Reset RLC counters of UE RNTI %04x to trigger reestablishment\n", rnti);
+
+  }
   return 0;
 }
 
@@ -142,38 +93,17 @@ int fetch_du_by_ue_id(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
 
-  ue_id_t ue_id = -1;
-  MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-  MessageDef *resp_ue_rnti_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_rnti_p, &resp_ue_rnti_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for RRC response\n");
-  }
-  if(!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.has_rrc){
-    free(resp_ue_rnti_p);
-    ERROR_MSG_RET("no RRC present, cannot list counts\n");
-  }
-  if(!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.is_single){
-    prnt("No ID was provided and multiple UEs are present, first one in list is selected\n");
-  }
-  ue_id = resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.id;
-  free(resp_ue_rnti_p);
-  if (buf) {
-    ue_id = strtol(buf, NULL, 10);
+  if (!buf) {
+    telnetsrv_pending_du_by_ue_id = true;
+    MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
+  } else {
+    ue_id_t ue_id = strtol(buf, NULL, 10);
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_DU_ID_BY_UE_ID);
+    msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id = ue_id;
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   }
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_DU_ID_BY_UE_ID);
-  msg_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id = ue_id;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for RRC response\n");
-  }
-  if (resp_p->ittiMsg.rrc_get_du_id_by_ue_id.no_du) {
-    free(resp_p);
-    ERROR_MSG_RET("No DU connected or no UE found with the requested ue_id.\n");
-  }
-  int du_id = resp_p->ittiMsg.rrc_get_du_id_by_ue_id.du_id;
-  prnt("gNB_DU_id %ld is connected to ue_id %ld\n", du_id, resp_p->ittiMsg.rrc_get_du_id_by_ue_id.ue_id);
-  free(resp_p);
   return 0;
 }
 
@@ -187,43 +117,20 @@ int fetch_du_by_ue_id(char *buf, int debug, telnet_printfunc_t prnt)
 int rrc_gNB_trigger_f1_ho(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  ue_id_t ue_id = -1;
   if (buf) {
     long parsed_id = strtol(buf, NULL, 10);
     if (parsed_id < 0)
       ERROR_MSG_RET("UE ID needs to be [1,0xfffffe]\n");
-    ue_id = parsed_id;
-    MessageDef *msg_check_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_CHECK_UE_CONTEXT);
-    msg_check_p->ittiMsg.rrc_check_ue_context.id = ue_id;
-    MessageDef *resp_check_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_check_p, &resp_check_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if (!resp_check_p->ittiMsg.rrc_check_ue_context.check) {
-      free(resp_check_p);
-      ERROR_MSG_RET("UE with id %u not found\n", ue_id);
-    }
-    free(resp_check_p);
-  } else {
-    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-    MessageDef *resp_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if(!resp_p->ittiMsg.rrc_get_single_ue_rnti.has_rrc){
-      ERROR_MSG_RET("No RRC present, cannot list count\n");
-    }
-    if(!resp_p->ittiMsg.rrc_get_single_ue_rnti.is_single){
-      prnt("No ID was provided and multiple UEs are present, first one in list is selected\n");
-    }
-    ue_id = resp_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_p);
-  }
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_F1_HO_TRIGGER);
-  msg_p->ittiMsg.rrc_trigger_f1_ho.id = ue_id;
-  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
-  prnt("RRC F1 handover triggered for UE %u\n", ue_id);
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_F1_HO_TRIGGER);
+    msg_p->ittiMsg.rrc_trigger_f1_ho.id = parsed_id;
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+    prnt("RRC F1 handover triggered for UE %u\n", (ue_id_t)parsed_id);
+  } else {
+    telnetsrv_pending_f1_ho = true;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+  }
   return 0;
 }
 
@@ -252,19 +159,6 @@ int rrc_gNB_trigger_n2_ho(char *buf, int debug, telnet_printfunc_t prnt)
     }
     uint32_t ueId = strtol(token, NULL, 10);
 
-    // Retrieve UE context
-    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_CHECK_UE_CONTEXT);
-    msg_p->ittiMsg.rrc_check_ue_context.id = ueId;
-    MessageDef *resp_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if (!resp_p->ittiMsg.rrc_check_ue_context.check) {
-      free(resp_p);
-      ERROR_MSG_RET("UE with id %u not found\n", ueId);
-    }
-    free(resp_p);
-    // Trigger N2 handover
     MessageDef *msg_ho_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_NR_N2_HO_TRIGGER);
     msg_ho_p->ittiMsg.rrc_trigger_n2_ho.id = ueId;
     msg_ho_p->ittiMsg.rrc_trigger_n2_ho.neighbour_pci = neighbour_pci;
@@ -280,76 +174,66 @@ int rrc_gNB_trigger_n2_ho(char *buf, int debug, telnet_printfunc_t prnt)
 int force_ul_failure(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  int rnti = fetch_rnti(buf, prnt);
-  if (rnti < 0)
-    return -1;
+  if (!buf) {
+    telnetsrv_pending_ul_failure = true;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    return 0;
+  } else {
+    rnti_t rnti = strtol(buf, NULL, 16);
+    if (rnti < 1 || rnti >= 0xfffe)
+      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
-  if (rnti == 0) {
-    ERROR_MSG_RET("no MAC/RLC present or could not identify UE (no UE, no such RNTI, or multiple UEs)\n");
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
+    msg_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    return 0;
   }
-
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
-  msg_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-  free(resp_p);
-  return 0;
 }
 
 int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  int rnti = fetch_rnti(buf, prnt);
-  if (rnti < 0)
-    ERROR_MSG_RET("could not identify UE (no UE, no such RNTI, or multiple UEs)\n");
+  if (!buf) {
+    telnetsrv_pending_ue_release = true;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    return 0;
+  } else {
+    rnti_t rnti = strtol(buf, NULL, 16);
+    if (rnti < 1 || rnti >= 0xfffe)
+      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
-  MessageDef *msg_ul_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
-  msg_ul_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
-  MessageDef *resp_ul_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_ul_p, &resp_ul_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-  free(resp_ul_p);
+    MessageDef *msg_ul_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UL_FAILURE);
+    msg_ul_p->ittiMsg.mac_force_ul_failure.rnti = rnti;
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_ul_p);
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UE_RELEASE);
-  msg_p->ittiMsg.mac_force_ue_release.rnti = rnti;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_FORCE_UE_RELEASE);
+    msg_p->ittiMsg.mac_force_ue_release.rnti = rnti;
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    prnt("Reset RLC counters and triggered UE release for UE RNTI %04x\n", rnti);
+    return 0;
   }
-  free(resp_p);
-  prnt("Reset RLC counters and triggered UE release for UE RNTI %04x\n", rnti);
-  return 0;
 }
 
 static int get_current_bwp(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  int rnti = fetch_rnti(buf, prnt);
-  if (rnti < 0)
-    ERROR_MSG_RET("could not identify UE (no UE, no such RNTI, or multiple UEs)\n");
+  if (!buf) {
+    telnetsrv_pending_bwp_info = true;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    return 0;
+  } else {
+    rnti_t rnti = strtol(buf, NULL, 16);
+    if (rnti < 1 || rnti >= 0xfffe)
+      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_BWP_INFO);
-  msg_p->ittiMsg.mac_get_ue_bwp_info.rnti = rnti;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_BWP_INFO);
+    msg_p->ittiMsg.mac_get_ue_bwp_info.rnti = rnti;
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+    return 0;
   }
-
-  int dl_bwp = resp_p->ittiMsg.mac_get_ue_bwp_info.dl_bwp_id;
-  int ul_bwp = resp_p->ittiMsg.mac_get_ue_bwp_info.ul_bwp_id;
-  free(resp_p);
-
-  if (dl_bwp < 0 || ul_bwp < 0)
-    ERROR_MSG_RET("could not find UE with RNTI %04x\n", rnti);
-
-  const char *dl_bwp_text = dl_bwp > 0 ? "dedicated" : "initial";
-  const char *ul_bwp_text = ul_bwp > 0 ? "dedicated" : "initial";
-
-  prnt("UE %04x DL BWP ID %d (%s) UL BWP ID %d (%s)\n", rnti, dl_bwp, dl_bwp_text, ul_bwp, ul_bwp_text);
-  return 0;
 }
 
 /** @brief Trigger NGAP PDU Session Release for one or more PDU sessions associated with a UE ID/
@@ -386,39 +270,22 @@ static int trigger_ngap_pdu_session_release(char *buf, int debug, telnet_printfu
     pdu_start_index = 1;
   } else {
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-    MessageDef *resp_ue_rnti_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_rnti_p, &resp_ue_rnti_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if (!check_single_rrc_ue(resp_ue_rnti_p, prnt)) {
-      free(resp_ue_rnti_p);
-      return -1;
-    }
-    gNB_ue_ngap_id = resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_ue_rnti_p);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
+    ERROR_MSG_RET("Need to provide ue_id for non-blocking mode\n");
   }
 
   if (pdu_start_index >= count) {
     ERROR_MSG_RET("No pdusession_id(int) provided\n");
   }
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_NGAP_UE_ID);
-  msg_p->ittiMsg.rrc_get_ngap_ue_id.gNB_ue_ngap_id = gNB_ue_ngap_id;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for RRC response\n");
-  }
-  int amf_ue_ngap_id = resp_p->ittiMsg.rrc_get_ngap_ue_id.amf_ue_ngap_id;
-  free(resp_p);
-  if (!amf_ue_ngap_id) {
-    ERROR_MSG_RET("No NGAP UE context for gNB_ue_ngap_id %d\n", gNB_ue_ngap_id);
+  if (gNB_ue_ngap_id < 0) {
+    ERROR_MSG_RET("Need to provide gNB_ue_ngap_id in non-blocking mode\n");
   }
 
   MessageDef *message_p = itti_alloc_new_message(TASK_TELNET, 0, NGAP_PDUSESSION_RELEASE_COMMAND);
   ngap_pdusession_release_command_t *msg = &NGAP_PDUSESSION_RELEASE_COMMAND(message_p);
   memset(msg, 0, sizeof(*msg));
 
-  msg->amf_ue_ngap_id = amf_ue_ngap_id;
   msg->gNB_ue_ngap_id = gNB_ue_ngap_id;
 
   int nb_sessions = 0;
@@ -453,15 +320,26 @@ static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
   }
   int bwpId = atoi(sbwpId);
   char *srnti = strtok(NULL, " ");
-  prnt("bwpId %d rnti %s\n", bwpId, srnti);
-  int rnti = fetch_rnti(srnti, prnt);
-  if (rnti < 0)
-    ERROR_MSG_RET("could not identify UE (no UE, no such RNTI, or multiple UEs)\n");
-  if (!nr_trigger_bwp_switch(rnti, bwpId)) {
-    ERROR_MSG_RET("failed trigger BWP switch for UE %04x BWP ID %d\n", rnti, bwpId);
-  } else {
-    prnt("triggered BWP switch to BWP ID %d for UE %04x\n", bwpId, rnti);
+
+  if (!srnti || !srnti[0]) {
+    telnetsrv_pending_bwp_id = bwpId;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_UE_RNTI);
+    itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
     return 0;
+  } else {
+    rnti_t rnti = strtol(srnti, NULL, 16);
+    if (rnti < 1 || rnti >= 0xfffe)
+      ERROR_MSG_RET("RNTI needs to be [1,0xfffe]\n");
+
+    telnetsrv_pending_bwp_id = -1;
+
+    prnt("bwpId %d rnti %04x\n", bwpId, rnti);
+    if (!nr_trigger_bwp_switch(rnti, bwpId)) {
+      ERROR_MSG_RET("failed trigger BWP switch for UE %04x BWP ID %d\n", rnti, bwpId);
+    } else {
+      prnt("triggered BWP switch to BWP ID %d for UE %04x\n", bwpId, rnti);
+      return 0;
+    }
   }
 }
 
@@ -478,11 +356,7 @@ static int set_pusch_target_snr(char *buf, int debug, telnet_printfunc_t prnt)
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_SET_PUSCH_TARGET_SNR);
   msg_p->ittiMsg.mac_set_pusch_target_snr.target_snrx10 = new_snr * 10;
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-  free(resp_p);
+  itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
   prnt("set new PUSCH target SNR %d for all UEs\n", new_snr);
 
   return 0;

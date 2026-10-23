@@ -5,6 +5,7 @@
 
 add_library(telnetsrv MODULE
             telnetsrv.c
+            telnetsrv_itti_handlers.c
             telnetsrv_proccmd.c
             telnetsrv_loader.c
             telnetsrv_measurements.c

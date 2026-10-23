@@ -55,31 +55,14 @@ int rrc_gNB_trigger_release(char *buf, int debug, telnet_printfunc_t prnt)
       prnt("UE ID needs to be [1,0xfffffe]\n");
       ERROR_MSG_RET("UE ID needs to be [1,0xfffffe]\n");
     }
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GNB_GENERATE_RRCRELEASE);
+    msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id = ue_id;
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+    prnt("RRC Release triggered for UE %u\n", ue_id);
   } else {
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-    MessageDef *resp_ue_rnti_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_rnti_p, &resp_ue_rnti_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if(!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.has_rrc){
-      free(resp_ue_rnti_p);
-      ERROR_MSG_RET("no RRC present, cannot list counts\n");
-    }
-    if (!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.is_single) {
-      free(resp_ue_rnti_p);
-      ERROR_MSG_RET("UE count is not exactly one in RRC\n");
-    }
-    ue_id = resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_ue_rnti_p);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
   }
-
-  /* get RRC and UE */
-
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GNB_GENERATE_RRCRELEASE);
-  msg_p->ittiMsg.rrc_gnb_generate_rrcrelease.ue_id = ue_id;
-  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
-
-  prnt("RRC Release triggered for UE %u\n", ue_id);
 
   return 0;
 }
@@ -92,15 +75,7 @@ int rrc_gNB_trigger_release_all(char *buf, int debug, telnet_printfunc_t prnt)
   UNUSED(debug);
   UNUSED(buf);
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GNB_GENERATE_RRCRELEASE_ALL);
-  MessageDef *resp_p;
-  if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for RRC response\n");
-  }
-  for (int i = 0; i < resp_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.nb_releases; i++) {
-    prnt("RRC Release triggered for UE %u\n",
-         resp_p->ittiMsg.rrc_gnb_generate_rrcrelease_all.rrc_gnb_generate_rrcreleases[i].ue_id);
-  }
-  free(resp_p);
+  itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
   return 0;
 }
 
@@ -111,20 +86,8 @@ static int rrc_gNB_trigger_ue_context_release_req(char *buf, int debug, telnet_p
 
   if (!buf) {
     MessageDef *msg_ue_rnti_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GET_SINGLE_UE_RNTI);
-    MessageDef *resp_ue_rnti_p;
-    if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_ue_rnti_p, &resp_ue_rnti_p, 1000)) {
-      ERROR_MSG_RET("Timeout waiting for RRC response\n");
-    }
-    if(!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.has_rrc){
-      free(resp_ue_rnti_p);
-      ERROR_MSG_RET("no RRC present, cannot list counts\n");
-    }
-    if (!resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.is_single) {
-      free(resp_ue_rnti_p);
-      ERROR_MSG_RET("UE count is not exactly one in RRC\n");
-    }
-    ue_id = resp_ue_rnti_p->ittiMsg.rrc_get_single_ue_rnti.id;
-    free(resp_ue_rnti_p);
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_ue_rnti_p);
+    return 0;
   } else {
     char *end = NULL;
     errno = 0;
@@ -133,24 +96,13 @@ static int rrc_gNB_trigger_ue_context_release_req(char *buf, int debug, telnet_p
       ERROR_MSG_RET("UE ID needs to be [1,0xfffffe]\n");
     }
     ue_id = parsed_id;
+    MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ);
+    msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id = ue_id;
+    itti_send_msg_to_task(TASK_RRC_GNB, 0, msg_p);
+    prnt("Sent NGAP UE Context Release Request\n");
+    return 0;
   }
 
-  MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, RRC_GNB_TRIGGER_UE_CONTEXT_RELEASE_REQ);
-  MessageDef *resp_p;
-  msg_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id = ue_id;
-  if (!itti_send_and_receive_msg_to_task(TASK_RRC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for RRC response\n");
-  }
-
-  if (!resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.rrc_ue_context) {
-    ERROR_MSG_RET("No RRC UE context for ue_id %d\n", resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id);
-  } else if (!resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ngap_ue_context) {
-    ERROR_MSG_RET("No NGAP UE context for ue_id %d\n", resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id);
-  } else {
-    prnt("Sent NGAP UE Context Release Request (user-inactivity) for ue_id %d\n",
-         resp_p->ittiMsg.rrc_gnb_trigger_ue_context_release_req.ue_id);
-  }
-  free(resp_p);
   return 0;
 }
 

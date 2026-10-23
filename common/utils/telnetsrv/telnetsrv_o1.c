@@ -22,8 +22,12 @@
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.c"
 #include "common/utils/nr/nr_common.h"
 #include "common/utils/ocp_itti/intertask_interface.h"
+#include "telnetsrv_itti_handlers.h"
 
 #define ERROR_MSG_RET(mSG, aRGS...) do { prnt("FAILURE: " mSG, ##aRGS); return 1; } while (0)
+
+// External reference to running state (defined in telnetsrv.c)
+extern bool telnetsrv_o1_running;
 
 #define ISINITBWP "bwp3gpp:isInitialBwp"
 //#define CYCLPREF  "bwp3gpp:cyclicPrefix"
@@ -68,102 +72,9 @@ static int get_stats(char *buf, int debug, telnet_printfunc_t prnt)
     ERROR_MSG_RET("no parameter allowed\n");
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_GET_O1_STATS);
-  MessageDef *resp_p;
-
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-
-  Mac_get_o1_stats *current = &resp_p->ittiMsg.mac_get_o1_stats;
-
-  static uint64_t last_dl_used = 0;
-  static uint64_t last_dl_total = 0;
-  int diff_used = current->dl_used_prb_aggregate - last_dl_used;
-  int diff_total = current->dl_total_prb_aggregate - last_dl_total;
-  int load = diff_total > 0 ? 100 * diff_used / diff_total : 0;
-  last_dl_used = current->dl_used_prb_aggregate;
-  last_dl_total = current->dl_total_prb_aggregate;
-
-  static struct timespec tp_last = {0};
-  size_t diff_msec = (current->tp_now.tv_sec - tp_last.tv_sec) * 1000 +
-                     (current->tp_now.tv_nsec - tp_last.tv_nsec) / 1000000;
-  tp_last = current->tp_now;
-  if (diff_msec == 0) diff_msec = 1; /* Avoid division by zero */
-
-  static long last_total_dl[MAX_MOBILES_PER_GNB] = {0};
-  static long last_total_ul[MAX_MOBILES_PER_GNB] = {0};
-
-  ue_stat_t ue_stat[MAX_MOBILES_PER_GNB] = {0};
-  int num_ues = current->num_ues;
-
-  for (int i = 0; i < num_ues; i++) {
-    const rnti_t rnti = current->ue_rlc_stats[i].rnti;
-
-    if (last_total_dl[i] > current->ue_rlc_stats[i].txpdu_bytes)
-      last_total_dl[i] = current->ue_rlc_stats[i].txpdu_bytes;
-    if (last_total_ul[i] > current->ue_rlc_stats[i].rxpdu_bytes)
-      last_total_ul[i] = current->ue_rlc_stats[i].rxpdu_bytes;
-
-    ue_stat[i].rnti = rnti;
-    ue_stat[i].thr.dl = (current->ue_rlc_stats[i].txpdu_bytes - last_total_dl[i]) * 8 / diff_msec;
-    ue_stat[i].thr.ul = (current->ue_rlc_stats[i].rxpdu_bytes - last_total_ul[i]) * 8 / diff_msec;
-
-    last_total_dl[i] = current->ue_rlc_stats[i].txpdu_bytes;
-    last_total_ul[i] = current->ue_rlc_stats[i].rxpdu_bytes;
-  }
-
-  prnt("{\n");
-    prnt("  \"o1-config\": {\n");
-
-    prnt("    \"BWP\": {\n");
-    prnt("      \"dl\": [{\n");
-    prnt("        \"" ISINITBWP "\": true,\n");
-    prnt("        \"" NUMRBS "\": %ld,\n", current->dl_numrbs);
-    prnt("        \"" STARTRB "\": %ld,\n", current->dl_startrb);
-    prnt("        \"" BWPSCS "\": %ld\n", current->dl_bwpscs);
-    prnt("      }],\n");
-    prnt("      \"ul\": [{\n");
-    prnt("        \"" ISINITBWP "\": true,\n");
-    prnt("        \"" NUMRBS "\": %ld,\n", current->ul_numrbs);
-    prnt("        \"" STARTRB "\": %ld,\n", current->ul_startrb);
-    prnt("        \"" BWPSCS "\": %ld\n", current->ul_bwpscs);
-    prnt("      }]\n");
-    prnt("    },\n");
-
-    prnt("    \"NRCELLDU\": {\n");
-    prnt("      \"" SSBFREQ "\": %ld,\n", current->ssbFrequency);
-    prnt("      \"" ARFCNDL "\": %ld,\n", current->arfcnDL);
-    prnt("      \"" BWDL "\": %ld,\n", current->bw_mhz);
-    prnt("      \"" ARFCNUL "\": %ld,\n", current->arfcnUL);
-    prnt("      \"" BWUL "\": %ld,\n", current->bw_mhz);
-    prnt("      \"" PCI "\": %ld,\n", current->pci);
-    prnt("      \"" TAC "\": %ld,\n", current->tac);
-    prnt("      \"" MCC "\": \"%03d\",\n", current->mcc);
-    prnt("      \"" MNC "\": \"%0*d\",\n", current->mnc_digit_length, current->mnc);
-    prnt("      \"" SD  "\": %d,\n", current->sd);
-    prnt("      \"" SST "\": %d\n", current->sst);
-    prnt("    },\n");
-    prnt("    \"device\": {\n");
-    prnt("      \"gnbId\": %d,\n", current->gNB_DU_id);
-    prnt("      \"gnbName\": \"%s\",\n", current->gNB_DU_name);
-    prnt("      \"vendor\": \"OpenAirInterface\"\n");
-    prnt("    }\n");
-    prnt("  },\n");
-
-    prnt("  \"O1-Operational\": {\n");
-    prnt("    \"frame-type\": \"%s\",\n", current->frame_type == TDD ? "tdd" : "fdd");
-    prnt("    \"band-number\": %ld,\n", current->band);
-    prnt("    \"num-ues\": %d,\n", num_ues);
-    prnt("    \"ues\": ["); PRINTLIST_i(num_ues, "%d", ue_stat[i].rnti); prnt("],\n");
-    prnt("    \"load\": %d,\n", load);
-    prnt("    \"ues-thp\": [");
-      PRINTLIST_i(num_ues, "\n      {\"rnti\": %d, \"dl\": %ld, \"ul\": %ld}", ue_stat[i].rnti, ue_stat[i].thr.dl, ue_stat[i].thr.ul);
-    prnt("\n    ]\n");
-    prnt("  }\n");
-  prnt("}\n");
+  itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+  
   prnt("OK\n");
-
-  itti_free(ITTI_MSG_ORIGIN_ID(resp_p), resp_p);
   return 0;
 }
 
@@ -192,13 +103,12 @@ static int read_long(const char *buf, const char *end, const char *id, long *val
   return curr - buf;
 }
 
-bool running = true; // in the beginning, the softmodem is started automatically
 static int set_config(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   if (!buf)
     ERROR_MSG_RET("need param: o1 config param1 val1 [param2 val2 ...]\n");
-  if (running)
+  if (telnetsrv_o1_running)
     ERROR_MSG_RET("cannot set parameters while L1 is running\n");
   const char *end = buf + strlen(buf);
 
@@ -259,7 +169,7 @@ static int set_config(char *buf, int debug, telnet_printfunc_t prnt)
 static int set_bwconfig(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
-  if (running)
+  if (telnetsrv_o1_running)
     ERROR_MSG_RET("cannot set parameters while L1 is running\n");
   if (!buf)
     ERROR_MSG_RET("need param: o1 bwconfig <BW>\n");
@@ -276,13 +186,8 @@ static int set_bwconfig(char *buf, int debug, telnet_printfunc_t prnt)
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_SET_BWCONFIG);
   msg_p->ittiMsg.mac_set_bwconfig.bw_value = bw_value;
-  MessageDef *resp_p;
-
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-
-  itti_free(ITTI_MSG_ORIGIN_ID(resp_p), resp_p);
+  itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+  
   prnt("OK\n");
   return 0;
 }
@@ -292,18 +197,12 @@ static int stop_modem(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   UNUSED(buf);
-  if (!running)
+  if (!telnetsrv_o1_running)
     ERROR_MSG_RET("cannot stop, nr-softmodem not running\n");
 
   MessageDef *msg_p = itti_alloc_new_message(TASK_TELNET, 0, MAC_STOP_MODEM);
-  MessageDef *resp_p;
-
-  if (!itti_send_and_receive_msg_to_task(TASK_MAC_GNB, TASK_TELNET, msg_p, &resp_p, 1000)) {
-    ERROR_MSG_RET("Timeout waiting for MAC response\n");
-  }
-
-  itti_free(ITTI_MSG_ORIGIN_ID(resp_p), resp_p);
-  running = false;
+  itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
+  
   prnt("OK\n");
   return 0;
 }
@@ -313,10 +212,10 @@ static int start_modem(char *buf, int debug, telnet_printfunc_t prnt)
 {
   UNUSED(debug);
   UNUSED(buf);
-  if (running)
+  if (telnetsrv_o1_running)
     ERROR_MSG_RET("cannot start, nr-softmodem already running\n");
   start_L1L2(0, &RC.nrmac[0]->cells[0]);
-  running = true;
+  telnetsrv_o1_running = true;
   prnt("OK\n");
   return 0;
 }
