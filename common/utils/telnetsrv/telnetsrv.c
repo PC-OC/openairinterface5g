@@ -1148,8 +1148,6 @@ void *run_telnetsrv_itti(void *arg) {
                   read_history(telnetparams.histfile);
                   stifle_history(telnetparams.histsize);
                 }
-
-                send(new_sock, prompt, strlen(prompt), MSG_NOSIGNAL);
               } else {
                 close(new_sock);
                 TELNET_LOG("Max clients reached, connection refused\n");
