@@ -29,7 +29,7 @@ extern "C" {
 
 typedef void *Window;
 typedef void *Pixmap;
-#define FL_EXPORT inline
+#define FL_EXPORT
 
 /**
  * \file Basic.h
@@ -267,30 +267,15 @@ typedef enum {
   FL_ALIGN_BOTTOM_RIGHT = FL_ALIGN_RIGHT_BOTTOM
 } FL_ALIGN;
 
-FL_EXPORT int fl_is_inside_lalign(int align)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_inside_lalign(int align);
 
-FL_EXPORT int fl_is_outside_lalign(int align)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_outside_lalign(int align);
 
-FL_EXPORT int fl_is_center_lalign(int align)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_center_lalign(int align);
 
-FL_EXPORT int fl_to_inside_lalign(int align)
-{
-  return 0;
-};
+FL_EXPORT int fl_to_inside_lalign(int align);
 
-FL_EXPORT int fl_to_outside_lalign(int align)
-{
-  return 0;
-};
+FL_EXPORT int fl_to_outside_lalign(int align);
 
 /* Mouse buttons. Don't have to be consecutive */
 
@@ -839,485 +824,347 @@ enum { FL_READ = 1, FL_WRITE = 2, FL_EXCEPT = 4 };
 
 typedef void (*FL_IO_CALLBACK)(int, void *);
 
-FL_EXPORT void fl_add_io_callback(int fd, unsigned int mask, FL_IO_CALLBACK callback, void *data){};
+FL_EXPORT void fl_add_io_callback(int fd, unsigned int mask, FL_IO_CALLBACK callback, void *data);
 
-FL_EXPORT void fl_remove_io_callback(int fd, unsigned int mask, FL_IO_CALLBACK cb){};
+FL_EXPORT void fl_remove_io_callback(int fd, unsigned int mask, FL_IO_CALLBACK cb);
 
 /* signals */
 
 typedef void (*FL_SIGNAL_HANDLER)(int, void *);
 
-FL_EXPORT void fl_add_signal_callback(int s, FL_SIGNAL_HANDLER cb, void *data){};
+FL_EXPORT void fl_add_signal_callback(int s, FL_SIGNAL_HANDLER cb, void *data);
 
-FL_EXPORT void fl_remove_signal_callback(int s){};
+FL_EXPORT void fl_remove_signal_callback(int s);
 
-FL_EXPORT void fl_signal_caught(int s){};
+FL_EXPORT void fl_signal_caught(int s);
 
-FL_EXPORT void fl_app_signal_direct(int y){};
+FL_EXPORT void fl_app_signal_direct(int y);
 
 enum { FL_INPUT_END_EVENT_CLASSIC = 0, FL_INPUT_END_EVENT_ALWAYS = 1 };
 
-FL_EXPORT int fl_input_end_return_handling(int type)
-{
-  return 0;
-};
+FL_EXPORT int fl_input_end_return_handling(int type);
 
 
 
 /** Generic routines that deal with FORMS **/
 
-FL_EXPORT FL_FORM *fl_bgn_form(int type, FL_Coord w, FL_Coord h)
-{
-  return NULL;
-};
+FL_EXPORT FL_FORM *fl_bgn_form(int type, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_end_form(void){};
+FL_EXPORT void fl_end_form(void);
 
-FL_EXPORT FL_OBJECT *fl_do_forms(void)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_do_forms(void);
 
-FL_EXPORT FL_OBJECT *fl_check_forms(void)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_check_forms(void);
 
-FL_EXPORT FL_OBJECT *fl_do_only_forms(void)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_do_only_forms(void);
 
-FL_EXPORT FL_OBJECT *fl_check_only_forms(void)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_check_only_forms(void);
 
-FL_EXPORT void fl_freeze_form(FL_FORM *form){};
+FL_EXPORT void fl_freeze_form(FL_FORM *form);
 
-FL_EXPORT void fl_set_focus_object(FL_FORM *form, FL_OBJECT *obj){};
+FL_EXPORT void fl_set_focus_object(FL_FORM *form, FL_OBJECT *obj);
 
-FL_EXPORT FL_OBJECT *fl_get_focus_object(FL_FORM *form)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_get_focus_object(FL_FORM *form);
 
-FL_EXPORT void fl_reset_focus_object(FL_OBJECT *ob){};
+FL_EXPORT void fl_reset_focus_object(FL_OBJECT *ob);
 
 
-FL_EXPORT FL_FORM_ATCLOSE fl_set_form_atclose(FL_FORM *form, FL_FORM_ATCLOSE fmclose, void *data){};
+FL_EXPORT FL_FORM_ATCLOSE fl_set_form_atclose(FL_FORM *form, FL_FORM_ATCLOSE fmclose, void *data);
 
-FL_EXPORT FL_FORM_ATCLOSE fl_set_atclose(FL_FORM_ATCLOSE fmclose, void *data){};
+FL_EXPORT FL_FORM_ATCLOSE fl_set_atclose(FL_FORM_ATCLOSE fmclose, void *data);
 
-FL_EXPORT FL_FORM_ATACTIVATE fl_set_form_atactivate(FL_FORM *form, FL_FORM_ATACTIVATE cb, void *data){};
+FL_EXPORT FL_FORM_ATACTIVATE fl_set_form_atactivate(FL_FORM *form, FL_FORM_ATACTIVATE cb, void *data);
 
-FL_EXPORT FL_FORM_ATDEACTIVATE fl_set_form_atdeactivate(FL_FORM *form, FL_FORM_ATDEACTIVATE cb, void *data){};
+FL_EXPORT FL_FORM_ATDEACTIVATE fl_set_form_atdeactivate(FL_FORM *form, FL_FORM_ATDEACTIVATE cb, void *data);
 
-FL_EXPORT void fl_unfreeze_form(FL_FORM *form){};
+FL_EXPORT void fl_unfreeze_form(FL_FORM *form);
 
-FL_EXPORT int fl_form_is_activated(FL_FORM *form){};
+FL_EXPORT int fl_form_is_activated(FL_FORM *form);
 
-FL_EXPORT void fl_deactivate_form(FL_FORM *form){};
+FL_EXPORT void fl_deactivate_form(FL_FORM *form);
 
-FL_EXPORT void fl_activate_form(FL_FORM *form){};
+FL_EXPORT void fl_activate_form(FL_FORM *form);
 
-FL_EXPORT void fl_deactivate_all_forms(void){};
+FL_EXPORT void fl_deactivate_all_forms(void);
 
-FL_EXPORT void fl_activate_all_forms(void){};
+FL_EXPORT void fl_activate_all_forms(void);
 
-FL_EXPORT void fl_freeze_all_forms(void){};
+FL_EXPORT void fl_freeze_all_forms(void);
 
-FL_EXPORT void fl_unfreeze_all_forms(void){};
+FL_EXPORT void fl_unfreeze_all_forms(void);
 
-FL_EXPORT void fl_scale_form(FL_FORM *form, double xsc, double ysc){};
+FL_EXPORT void fl_scale_form(FL_FORM *form, double xsc, double ysc);
 
-FL_EXPORT void fl_set_form_position(FL_FORM *form, FL_Coord x, FL_Coord y){};
+FL_EXPORT void fl_set_form_position(FL_FORM *form, FL_Coord x, FL_Coord y);
 
-FL_EXPORT void fl_set_form_title(FL_FORM *form, const char *name){};
+FL_EXPORT void fl_set_form_title(FL_FORM *form, const char *name);
 
-FL_EXPORT void fl_set_form_title_f(FL_FORM *form, const char *fmt, ...){};
+FL_EXPORT void fl_set_form_title_f(FL_FORM *form, const char *fmt, ...);
 
-FL_EXPORT void fl_set_app_mainform(FL_FORM *form){};
+FL_EXPORT void fl_set_app_mainform(FL_FORM *form);
 
-FL_EXPORT FL_FORM *fl_get_app_mainform(void)
-{
-  return NULL;
-};
+FL_EXPORT FL_FORM *fl_get_app_mainform(void);
 
-FL_EXPORT void fl_set_app_nomainform(int flag){};
+FL_EXPORT void fl_set_app_nomainform(int flag);
 
-FL_EXPORT void fl_set_form_callback(FL_FORM *form, FL_FORMCALLBACKPTR callback, void *d){};
+FL_EXPORT void fl_set_form_callback(FL_FORM *form, FL_FORMCALLBACKPTR callback, void *d);
 
 
-FL_EXPORT void fl_set_form_size(FL_FORM *form, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_form_size(FL_FORM *form, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_set_form_background_color(FL_FORM *form, FL_COLOR color){};
+FL_EXPORT void fl_set_form_background_color(FL_FORM *form, FL_COLOR color);
 
-FL_EXPORT FL_COLOR fl_get_form_background_color(FL_FORM *form){};
+FL_EXPORT FL_COLOR fl_get_form_background_color(FL_FORM *form);
 
-FL_EXPORT void fl_set_form_hotspot(FL_FORM *form, FL_Coord x, FL_Coord y){};
+FL_EXPORT void fl_set_form_hotspot(FL_FORM *form, FL_Coord x, FL_Coord y);
 
-FL_EXPORT void fl_set_form_hotobject(FL_FORM *form, FL_OBJECT *ob){};
+FL_EXPORT void fl_set_form_hotobject(FL_FORM *form, FL_OBJECT *ob);
 
-FL_EXPORT void fl_set_form_minsize(FL_FORM *form, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_form_minsize(FL_FORM *form, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_set_form_maxsize(FL_FORM *form, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_form_maxsize(FL_FORM *form, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_set_form_event_cmask(FL_FORM *form, unsigned long cmask){};
+FL_EXPORT void fl_set_form_event_cmask(FL_FORM *form, unsigned long cmask);
 
-FL_EXPORT unsigned long fl_get_form_event_cmask(FL_FORM *form){};
+FL_EXPORT unsigned long fl_get_form_event_cmask(FL_FORM *form);
 
-FL_EXPORT void fl_set_form_geometry(FL_FORM *form, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
-
-
-FL_EXPORT Window fl_show_form(FL_FORM *form, int place, int border, const char *name)
-{
-  return NULL;
-};
-
-FL_EXPORT Window fl_show_form_f(FL_FORM *form, int place, int border, const char *fmt, ...)
-{
-  return NULL;
-};
-
-FL_EXPORT void fl_hide_form(FL_FORM *form){};
-
-FL_EXPORT void fl_free_form(FL_FORM *form){};
-
-FL_EXPORT void fl_redraw_form(FL_FORM *form){};
-
-FL_EXPORT void fl_set_form_dblbuffer(FL_FORM *form, int y){};
-
-FL_EXPORT Window fl_prepare_form_window(FL_FORM *form, int place, int border, const char *name)
-{
-  return NULL;
-};
-
-FL_EXPORT Window fl_prepare_form_window_f(FL_FORM *form, int place, int border, const char *fmt, ...)
-{
-  return NULL;
-};
-
-FL_EXPORT Window fl_show_form_window(FL_FORM *form)
-{
-  return NULL;
-};
-
-FL_EXPORT double fl_adjust_form_size(FL_FORM *form)
-{
-  return 0;
-};
-
-FL_EXPORT int fl_form_is_visible(FL_FORM *form)
-{
-  return 0;
-};
-
-FL_EXPORT int fl_form_is_iconified(FL_FORM *form)
-{
-  return 0;
-};
-
-FL_EXPORT FL_RAW_CALLBACK fl_register_raw_callback(FL_FORM *form, unsigned long mask, FL_RAW_CALLBACK rcb){};
+FL_EXPORT void fl_set_form_geometry(FL_FORM *form, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
 
-FL_EXPORT FL_OBJECT *fl_bgn_group(void)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_show_form(FL_FORM *form, int place, int border, const char *name);
 
-FL_EXPORT void fl_end_group(void){};
+FL_EXPORT Window fl_show_form_f(FL_FORM *form, int place, int border, const char *fmt, ...);
 
-FL_EXPORT FL_OBJECT *fl_addto_group(FL_OBJECT *group)
-{
-  return NULL;
-};
+FL_EXPORT void fl_hide_form(FL_FORM *form);
+
+FL_EXPORT void fl_free_form(FL_FORM *form);
+
+FL_EXPORT void fl_redraw_form(FL_FORM *form);
+
+FL_EXPORT void fl_set_form_dblbuffer(FL_FORM *form, int y);
+
+FL_EXPORT Window fl_prepare_form_window(FL_FORM *form, int place, int border, const char *name);
+
+FL_EXPORT Window fl_prepare_form_window_f(FL_FORM *form, int place, int border, const char *fmt, ...);
+
+FL_EXPORT Window fl_show_form_window(FL_FORM *form);
+
+FL_EXPORT double fl_adjust_form_size(FL_FORM *form);
+
+FL_EXPORT int fl_form_is_visible(FL_FORM *form);
+
+FL_EXPORT int fl_form_is_iconified(FL_FORM *form);
+
+FL_EXPORT FL_RAW_CALLBACK fl_register_raw_callback(FL_FORM *form, unsigned long mask, FL_RAW_CALLBACK rcb);
+
+
+FL_EXPORT FL_OBJECT *fl_bgn_group(void);
+
+FL_EXPORT void fl_end_group(void);
+
+FL_EXPORT FL_OBJECT *fl_addto_group(FL_OBJECT *group);
 
 /****** Routines that deal with FL_OBJECTS ********/
 
-FL_EXPORT int fl_get_object_objclass(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_objclass(FL_OBJECT *obj);
 
-FL_EXPORT int fl_get_object_type(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_type(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_boxtype(FL_OBJECT *ob, int boxtype){};
+FL_EXPORT void fl_set_object_boxtype(FL_OBJECT *ob, int boxtype);
 
-FL_EXPORT int fl_get_object_boxtype(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_boxtype(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_bw(FL_OBJECT *ob, int bw){};
+FL_EXPORT void fl_set_object_bw(FL_OBJECT *ob, int bw);
 
-FL_EXPORT int fl_get_object_bw(FL_OBJECT *ob)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_bw(FL_OBJECT *ob);
 
-FL_EXPORT void fl_set_object_resize(FL_OBJECT *ob, unsigned int what){};
+FL_EXPORT void fl_set_object_resize(FL_OBJECT *ob, unsigned int what);
 
-FL_EXPORT void fl_get_object_resize(FL_OBJECT *ob, unsigned int *what){};
+FL_EXPORT void fl_get_object_resize(FL_OBJECT *ob, unsigned int *what);
 
-FL_EXPORT void fl_set_object_gravity(FL_OBJECT *ob, unsigned int nw, unsigned int se){};
+FL_EXPORT void fl_set_object_gravity(FL_OBJECT *ob, unsigned int nw, unsigned int se);
 
-FL_EXPORT void fl_get_object_gravity(FL_OBJECT *ob, unsigned int *nw, unsigned int *se){};
+FL_EXPORT void fl_get_object_gravity(FL_OBJECT *ob, unsigned int *nw, unsigned int *se);
 
-FL_EXPORT void fl_set_object_lsize(FL_OBJECT *obj, int lsize){};
+FL_EXPORT void fl_set_object_lsize(FL_OBJECT *obj, int lsize);
 
-FL_EXPORT int fl_get_object_lsize(FL_OBJECT *obj){};
+FL_EXPORT int fl_get_object_lsize(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_lstyle(FL_OBJECT *obj, int lstyle){};
+FL_EXPORT void fl_set_object_lstyle(FL_OBJECT *obj, int lstyle);
 
-FL_EXPORT int fl_get_object_lstyle(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_lstyle(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_lcol(FL_OBJECT *ob, FL_COLOR lcol){};
+FL_EXPORT void fl_set_object_lcol(FL_OBJECT *ob, FL_COLOR lcol);
 
-FL_EXPORT FL_COLOR fl_get_object_lcol(FL_OBJECT *obj){};
+FL_EXPORT FL_COLOR fl_get_object_lcol(FL_OBJECT *obj);
 
-FL_EXPORT int fl_set_object_return(FL_OBJECT *ob, unsigned int when){};
+FL_EXPORT int fl_set_object_return(FL_OBJECT *ob, unsigned int when);
 
-FL_EXPORT void fl_set_object_lalign(FL_OBJECT *obj, int align){};
+FL_EXPORT void fl_set_object_lalign(FL_OBJECT *obj, int align);
 
-FL_EXPORT int fl_get_object_lalign(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_lalign(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_shortcut(FL_OBJECT *obj, const char *sstr, int showit){};
+FL_EXPORT void fl_set_object_shortcut(FL_OBJECT *obj, const char *sstr, int showit);
 
-FL_EXPORT void fl_set_object_shortcutkey(FL_OBJECT *obj, unsigned int keysym){};
+FL_EXPORT void fl_set_object_shortcutkey(FL_OBJECT *obj, unsigned int keysym);
 
-FL_EXPORT void fl_set_object_dblbuffer(FL_OBJECT *ob, int y){};
+FL_EXPORT void fl_set_object_dblbuffer(FL_OBJECT *ob, int y);
 
-FL_EXPORT void fl_set_object_color(FL_OBJECT *ob, FL_COLOR col1, FL_COLOR col2){};
+FL_EXPORT void fl_set_object_color(FL_OBJECT *ob, FL_COLOR col1, FL_COLOR col2);
 
-FL_EXPORT void fl_get_object_color(FL_OBJECT *obj, FL_COLOR *col1, FL_COLOR *col2){};
+FL_EXPORT void fl_get_object_color(FL_OBJECT *obj, FL_COLOR *col1, FL_COLOR *col2);
 
-FL_EXPORT void fl_set_object_label(FL_OBJECT *ob, const char *label){};
+FL_EXPORT void fl_set_object_label(FL_OBJECT *ob, const char *label);
 
-FL_EXPORT void fl_set_object_label_f(FL_OBJECT *obj, const char *fmt, ...){};
+FL_EXPORT void fl_set_object_label_f(FL_OBJECT *obj, const char *fmt, ...);
 
-FL_EXPORT const char *fl_get_object_label(FL_OBJECT *obj)
-{
-  return NULL;
-};
+FL_EXPORT const char *fl_get_object_label(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_helper(FL_OBJECT *ob, const char *tip){};
+FL_EXPORT void fl_set_object_helper(FL_OBJECT *ob, const char *tip);
 
-FL_EXPORT void fl_set_object_helper_f(FL_OBJECT *ob, const char *fmt, ...){};
+FL_EXPORT void fl_set_object_helper_f(FL_OBJECT *ob, const char *fmt, ...);
 
-FL_EXPORT void fl_set_object_position(FL_OBJECT *obj, FL_Coord x, FL_Coord y){};
+FL_EXPORT void fl_set_object_position(FL_OBJECT *obj, FL_Coord x, FL_Coord y);
 
-FL_EXPORT void fl_get_object_size(FL_OBJECT *obj, FL_Coord *w, FL_Coord *h){};
+FL_EXPORT void fl_get_object_size(FL_OBJECT *obj, FL_Coord *w, FL_Coord *h);
 
-FL_EXPORT void fl_set_object_size(FL_OBJECT *obj, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_object_size(FL_OBJECT *obj, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_set_object_automatic(FL_OBJECT *obj, int flag){};
+FL_EXPORT void fl_set_object_automatic(FL_OBJECT *obj, int flag);
 
-FL_EXPORT int fl_object_is_automatic(FL_OBJECT *obj){};
+FL_EXPORT int fl_object_is_automatic(FL_OBJECT *obj);
 
-FL_EXPORT void fl_draw_object_label(FL_OBJECT *ob){};
+FL_EXPORT void fl_draw_object_label(FL_OBJECT *ob);
 
-FL_EXPORT void fl_draw_object_label_outside(FL_OBJECT *ob){};
+FL_EXPORT void fl_draw_object_label_outside(FL_OBJECT *ob);
 
-FL_EXPORT FL_OBJECT *fl_get_object_component(FL_OBJECT *composite, int objclass, int type, int numb)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_get_object_component(FL_OBJECT *composite, int objclass, int type, int numb);
 
-FL_EXPORT void fl_for_all_objects(FL_FORM *form, int (*cb)(FL_OBJECT *, void *), void *v){};
+FL_EXPORT void fl_for_all_objects(FL_FORM *form, int (*cb)(FL_OBJECT *, void *), void *v);
 
 
-FL_EXPORT void fl_set_object_dblclick(FL_OBJECT *obj, unsigned long timeout){};
+FL_EXPORT void fl_set_object_dblclick(FL_OBJECT *obj, unsigned long timeout);
 
-FL_EXPORT unsigned long fl_get_object_dblclick(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT unsigned long fl_get_object_dblclick(FL_OBJECT *obj);
 
-FL_EXPORT void fl_set_object_geometry(FL_OBJECT *obj, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_object_geometry(FL_OBJECT *obj, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_move_object(FL_OBJECT *obj, FL_Coord dx, FL_Coord dy){};
+FL_EXPORT void fl_move_object(FL_OBJECT *obj, FL_Coord dx, FL_Coord dy);
 
 #define fl_set_object_lcolor fl_set_object_lcol
 
-FL_EXPORT void fl_fit_object_label(FL_OBJECT *obj, FL_Coord xmargin, FL_Coord ymargin){};
+FL_EXPORT void fl_fit_object_label(FL_OBJECT *obj, FL_Coord xmargin, FL_Coord ymargin);
 
-FL_EXPORT void fl_get_object_geometry(FL_OBJECT *ob, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h){};
+FL_EXPORT void fl_get_object_geometry(FL_OBJECT *ob, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h);
 
-FL_EXPORT void fl_get_object_position(FL_OBJECT *ob, FL_Coord *x, FL_Coord *y){};
+FL_EXPORT void fl_get_object_position(FL_OBJECT *ob, FL_Coord *x, FL_Coord *y);
 
 /* This one takes into account the label */
 
-FL_EXPORT void fl_get_object_bbox(FL_OBJECT *obj, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h)
-{
-  *x = *y = *w = *h = 0;
-};
+FL_EXPORT void fl_get_object_bbox(FL_OBJECT *obj, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h);
 
 
-FL_EXPORT void fl_call_object_callback(FL_OBJECT *ob){};
+FL_EXPORT void fl_call_object_callback(FL_OBJECT *ob);
 
-FL_EXPORT FL_HANDLEPTR fl_set_object_prehandler(FL_OBJECT *ob, FL_HANDLEPTR phandler){};
+FL_EXPORT FL_HANDLEPTR fl_set_object_prehandler(FL_OBJECT *ob, FL_HANDLEPTR phandler);
 
-FL_EXPORT FL_HANDLEPTR fl_set_object_posthandler(FL_OBJECT *ob, FL_HANDLEPTR post){};
+FL_EXPORT FL_HANDLEPTR fl_set_object_posthandler(FL_OBJECT *ob, FL_HANDLEPTR post);
 
-FL_EXPORT FL_CALLBACKPTR fl_set_object_callback(FL_OBJECT *obj, FL_CALLBACKPTR callback, long argument){};
+FL_EXPORT FL_CALLBACKPTR fl_set_object_callback(FL_OBJECT *obj, FL_CALLBACKPTR callback, long argument);
 
 
-FL_EXPORT void fl_redraw_object(FL_OBJECT *obj){};
+FL_EXPORT void fl_redraw_object(FL_OBJECT *obj);
 
-FL_EXPORT void fl_show_object(FL_OBJECT *ob){};
+FL_EXPORT void fl_show_object(FL_OBJECT *ob);
 
-FL_EXPORT void fl_hide_object(FL_OBJECT *ob){};
+FL_EXPORT void fl_hide_object(FL_OBJECT *ob);
 
-FL_EXPORT int fl_object_is_visible(FL_OBJECT *obj){};
+FL_EXPORT int fl_object_is_visible(FL_OBJECT *obj);
 
-FL_EXPORT void fl_free_object(FL_OBJECT *obj){};
+FL_EXPORT void fl_free_object(FL_OBJECT *obj);
 
-FL_EXPORT void fl_delete_object(FL_OBJECT *obj){};
+FL_EXPORT void fl_delete_object(FL_OBJECT *obj);
 
-FL_EXPORT int fl_get_object_return_state(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_object_return_state(FL_OBJECT *obj);
 
-FL_EXPORT void fl_trigger_object(FL_OBJECT *obj){};
+FL_EXPORT void fl_trigger_object(FL_OBJECT *obj);
 
-FL_EXPORT void fl_activate_object(FL_OBJECT *ob){};
+FL_EXPORT void fl_activate_object(FL_OBJECT *ob);
 
-FL_EXPORT void fl_deactivate_object(FL_OBJECT *ob){};
+FL_EXPORT void fl_deactivate_object(FL_OBJECT *ob);
 
-FL_EXPORT int fl_object_is_active(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_object_is_active(FL_OBJECT *obj);
 
-FL_EXPORT int fl_enumerate_fonts(void (*output)(const char *s), int shortform)
-{
-  return 0;
-};
+FL_EXPORT int fl_enumerate_fonts(void (*output)(const char *s), int shortform);
 
-FL_EXPORT int fl_set_font_name(int n, const char *name)
-{
-  return 0;
-};
+FL_EXPORT int fl_set_font_name(int n, const char *name);
 
-FL_EXPORT int fl_set_font_name_f(int n, const char *fmt, ...)
-{
-  return 0;
-};
+FL_EXPORT int fl_set_font_name_f(int n, const char *fmt, ...);
 
-FL_EXPORT void fl_set_font(int numb, int size){};
+FL_EXPORT void fl_set_font(int numb, int size);
 
 /* Routines that facilitate free object */
 
-FL_EXPORT int fl_get_char_height(int style, int size, int *asc, int *desc)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_char_height(int style, int size, int *asc, int *desc);
 
-FL_EXPORT int fl_get_char_width(int style, int size)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_char_width(int style, int size);
 
-FL_EXPORT int fl_get_string_height(int style, int size, const char *s, int len, int *asc, int *desc)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_string_height(int style, int size, const char *s, int len, int *asc, int *desc);
 
-FL_EXPORT int fl_get_string_width(int style, int size, const char *s, int len)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_string_width(int style, int size, const char *s, int len);
 
-FL_EXPORT int fl_get_string_widthTAB(int style, int size, const char *s, int len)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_string_widthTAB(int style, int size, const char *s, int len);
 
-FL_EXPORT void fl_get_string_dimension(int fntstyle, int fntsize, const char *s, int len, int *width, int *height){};
+FL_EXPORT void fl_get_string_dimension(int fntstyle, int fntsize, const char *s, int len, int *width, int *height);
 
 
-FL_EXPORT void fl_get_align_xy(int align, int x, int y, int w, int h, int xsize, int ysize, int xoff, int yoff, int *xx, int *yy){};
+FL_EXPORT void fl_get_align_xy(int align, int x, int y, int w, int h, int xsize, int ysize, int xoff, int yoff, int *xx, int *yy);
 
-FL_EXPORT int fl_get_label_char_at_mouse(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_label_char_at_mouse(FL_OBJECT *obj);
 
-FL_EXPORT void fl_drw_text(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *istr){};
+FL_EXPORT void fl_drw_text(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *istr);
 
-FL_EXPORT void fl_drw_text_beside(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *str){};
+FL_EXPORT void fl_drw_text_beside(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *str);
 
-FL_EXPORT void fl_drw_text_cursor(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *str, int cc, int pos){};
+FL_EXPORT void fl_drw_text_cursor(int align, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int style, int size, const char *str, int cc, int pos);
 
-FL_EXPORT void fl_drw_box(int style, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int bw_in){};
+FL_EXPORT void fl_drw_box(int style, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR c, int bw_in);
 
 typedef void (*FL_DRAWPTR)(FL_Coord, FL_Coord, FL_Coord, FL_Coord, int, FL_COLOR);
 
-FL_EXPORT int fl_add_symbol(const char *name, FL_DRAWPTR drawit, int scalable)
-{
-  return 0;
-};
+FL_EXPORT int fl_add_symbol(const char *name, FL_DRAWPTR drawit, int scalable);
 
-FL_EXPORT int fl_delete_symbol(const char *name)
-{
-  return 0;
-};
+FL_EXPORT int fl_delete_symbol(const char *name);
 
-FL_EXPORT int fl_draw_symbol(const char *label, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col)
-{
-  return 0;
-};
+FL_EXPORT int fl_draw_symbol(const char *label, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col);
 
-FL_EXPORT unsigned long fl_mapcolor(FL_COLOR col, int r, int g, int b)
-{
-  return 0;
-};
+FL_EXPORT unsigned long fl_mapcolor(FL_COLOR col, int r, int g, int b);
 
-FL_EXPORT long fl_mapcolorname(FL_COLOR col, const char *name)
-{
-  return 0;
-};
+FL_EXPORT long fl_mapcolorname(FL_COLOR col, const char *name);
 
 
-FL_EXPORT void fl_free_colors(FL_COLOR *c, int n){};
+FL_EXPORT void fl_free_colors(FL_COLOR *c, int n);
 
-FL_EXPORT void fl_free_pixels(unsigned long *pix, int n){};
+FL_EXPORT void fl_free_pixels(unsigned long *pix, int n);
 
-FL_EXPORT void fl_set_color_leak(int y){};
+FL_EXPORT void fl_set_color_leak(int y);
 
-FL_EXPORT unsigned long fl_getmcolor(FL_COLOR i, int *r, int *g, int *b)
-{
-  return 0;
-};
+FL_EXPORT unsigned long fl_getmcolor(FL_COLOR i, int *r, int *g, int *b);
 
-FL_EXPORT unsigned long fl_get_pixel(FL_COLOR col)
-{
-  return 0;
-};
+FL_EXPORT unsigned long fl_get_pixel(FL_COLOR col);
 
 
-FL_EXPORT void fl_get_icm_color(FL_COLOR col, int *r, int *g, int *b){};
+FL_EXPORT void fl_get_icm_color(FL_COLOR col, int *r, int *g, int *b);
 
-FL_EXPORT void fl_set_icm_color(FL_COLOR col, int r, int g, int b){};
+FL_EXPORT void fl_set_icm_color(FL_COLOR col, int r, int g, int b);
 
-FL_EXPORT void fl_color(FL_COLOR col){};
+FL_EXPORT void fl_color(FL_COLOR col);
 
-FL_EXPORT void fl_bk_color(FL_COLOR col){};
+FL_EXPORT void fl_bk_color(FL_COLOR col);
 
-FL_EXPORT void fl_set_gamma(double r, double g, double b){};
+FL_EXPORT void fl_set_gamma(double r, double g, double b);
 
-FL_EXPORT void fl_show_errors(int y){};
+FL_EXPORT void fl_show_errors(int y);
 
 /* Some macros */
 
@@ -1334,79 +1181,49 @@ typedef int (*FL_FSCB)(const char *, void *);
 
 __attribute__((unused)) static FL_FORM *fl_current_form;
 
-FL_EXPORT void fl_add_object(FL_FORM *form, FL_OBJECT *obj){};
+FL_EXPORT void fl_add_object(FL_FORM *form, FL_OBJECT *obj);
 
-FL_EXPORT FL_FORM *fl_addto_form(FL_FORM *form)
-{
-  return NULL;
-};
+FL_EXPORT FL_FORM *fl_addto_form(FL_FORM *form);
 
-FL_EXPORT FL_OBJECT *fl_make_object(int objclass, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label, FL_HANDLEPTR handle)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_make_object(int objclass, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label, FL_HANDLEPTR handle);
 
-FL_EXPORT void fl_add_child(FL_OBJECT *oa, FL_OBJECT *ob){};
+FL_EXPORT void fl_add_child(FL_OBJECT *oa, FL_OBJECT *ob);
 
-FL_EXPORT void fl_set_coordunit(int u){};
+FL_EXPORT void fl_set_coordunit(int u);
 
-FL_EXPORT void fl_set_border_width(int bw){};
+FL_EXPORT void fl_set_border_width(int bw);
 
-FL_EXPORT void fl_set_scrollbar_type(int t){};
+FL_EXPORT void fl_set_scrollbar_type(int t);
 
 #define fl_set_thinscrollbar(t) fl_set_scrollbar_type(t ? FL_THIN_SCROLLBAR : FL_NORMAL_SCROLLBAR)
 
-FL_EXPORT void fl_flip_yorigin(void){};
+FL_EXPORT void fl_flip_yorigin(void);
 
-FL_EXPORT int fl_get_coordunit(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_coordunit(void);
 
-FL_EXPORT int fl_get_border_width(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_border_width(void);
 
 /* Misc. routines */
 
-FL_EXPORT void fl_ringbell(int percent){};
+FL_EXPORT void fl_ringbell(int percent);
 
-FL_EXPORT void fl_gettime(long *sec, long *usec){};
+FL_EXPORT void fl_gettime(long *sec, long *usec);
 
-FL_EXPORT const char *fl_now(void)
-{
-  return NULL;
-};
+FL_EXPORT const char *fl_now(void);
 
-FL_EXPORT const char *fl_whoami(void)
-{
-  return NULL;
-};
+FL_EXPORT const char *fl_whoami(void);
 
-FL_EXPORT long fl_mouse_button(void)
-{
-  return 0;
-};
+FL_EXPORT long fl_mouse_button(void);
 
-FL_EXPORT int fl_current_event(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_current_event(void);
 
-FL_EXPORT char *fl_strdup(const char *s)
-{
-  return NULL;
-};
+FL_EXPORT char *fl_strdup(const char *s);
 
-FL_EXPORT void fl_set_err_logfp(FILE *fp){};
+FL_EXPORT void fl_set_err_logfp(FILE *fp);
 
-FL_EXPORT void fl_set_error_handler(FL_ERROR_FUNC user_func){};
+FL_EXPORT void fl_set_error_handler(FL_ERROR_FUNC user_func);
 
-FL_EXPORT char **fl_get_cmdline_args(int *ia)
-{
-  return NULL;
-};
+FL_EXPORT char **fl_get_cmdline_args(int *ia);
 
   /* This function was called 'fl_set_error_logfp/' in XForms 0.89. */
 
@@ -1417,28 +1234,22 @@ FL_EXPORT char **fl_get_cmdline_args(int *ia)
  * can re-assign these pointers to whatever function it wants, e.g.,
  * to a shared memory pool allocator. */
 /*
-FL_EXPORT void ( * fl_free )( void * ){};
+FL_EXPORT void ( * fl_free )( void * );
 
-FL_EXPORT void * ( * fl_malloc )( size_t ){};
+FL_EXPORT void * ( * fl_malloc )( size_t );
 
 FL_EXPORT void * ( * fl_calloc )( size_t,
-                                  size_t ){};
+                                  size_t );
 
 FL_EXPORT void * ( * fl_realloc )( void *,
-                                   size_t ){};
+                                   size_t );
 */
-FL_EXPORT int fl_msleep(unsigned long msec)
-{
-  return 0;
-};
+FL_EXPORT int fl_msleep(unsigned long msec);
 
 
 typedef const char *(*FL_VAL_FILTER)(FL_OBJECT *, double, int);
 
-FL_EXPORT int fl_is_same_object(FL_OBJECT *obj1, FL_OBJECT *obj2)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_same_object(FL_OBJECT *obj1, FL_OBJECT *obj2);
 
 #endif /* ! defined FL_BASIC_H */
 
@@ -1531,10 +1342,7 @@ __attribute__((unused)) static int fl_vmode;
 
 __attribute__((unused)) static char *fl_ul_magic_char;
 
-FL_EXPORT int fl_mode_capable(int mode, int warn)
-{
-  return 0;
-};
+FL_EXPORT int fl_mode_capable(int mode, int warn);
 
 #define fl_default_win() (fl_state[fl_vmode].trailblazer)
 #define fl_default_window() (fl_state[fl_vmode].trailblazer)
@@ -1572,23 +1380,23 @@ typedef XRectangle FL_RECT;
 
 /* Rectangles */
 
-FL_EXPORT void fl_rectangle(int fill, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col){};
+FL_EXPORT void fl_rectangle(int fill, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col);
 
-FL_EXPORT void fl_rectbound(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col){};
+FL_EXPORT void fl_rectbound(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col);
 
 #define fl_rectf(x, y, w, h, c) fl_rectangle(1, x, y, w, h, c)
 #define fl_rect(x, y, w, h, c) fl_rectangle(0, x, y, w, h, c)
 
 /* Rectangle with rounded-corners */
 
-FL_EXPORT void fl_roundrectangle(int fill, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col){};
+FL_EXPORT void fl_roundrectangle(int fill, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, FL_COLOR col);
 
 #define fl_roundrectf(x, y, w, h, c) fl_roundrectangle(1, x, y, w, h, c)
 #define fl_roundrect(x, y, w, h, c) fl_roundrectangle(0, x, y, w, h, c)
 
 /* General polygon and polylines */
 
-FL_EXPORT void fl_polygon(int fill, FL_POINT *xp, int n, FL_COLOR col){};
+FL_EXPORT void fl_polygon(int fill, FL_POINT *xp, int n, FL_COLOR col);
 
 #define fl_polyf(p, n, c) fl_polygon(1, p, n, c)
 #define fl_polyl(p, n, c) fl_polygon(0, p, n, c)
@@ -1599,18 +1407,18 @@ FL_EXPORT void fl_polygon(int fill, FL_POINT *xp, int n, FL_COLOR col){};
     fl_polygon(0, p, n, FL_BLACK); \
   } while (0)
 
-FL_EXPORT void fl_lines(FL_POINT *xp, int n, FL_COLOR col){};
+FL_EXPORT void fl_lines(FL_POINT *xp, int n, FL_COLOR col);
 
-FL_EXPORT void fl_line(FL_Coord xi, FL_Coord yi, FL_Coord xf, FL_Coord yf, FL_COLOR c){};
+FL_EXPORT void fl_line(FL_Coord xi, FL_Coord yi, FL_Coord xf, FL_Coord yf, FL_COLOR c);
 
-FL_EXPORT void fl_point(FL_Coord x, FL_Coord y, FL_COLOR c){};
+FL_EXPORT void fl_point(FL_Coord x, FL_Coord y, FL_COLOR c);
 
-FL_EXPORT void fl_points(FL_POINT *p, int np, FL_COLOR c){};
+FL_EXPORT void fl_points(FL_POINT *p, int np, FL_COLOR c);
 
 
-FL_EXPORT void fl_dashedlinestyle(const char *dash, int ndash){};
+FL_EXPORT void fl_dashedlinestyle(const char *dash, int ndash);
 
-FL_EXPORT void fl_update_display(int block){};
+FL_EXPORT void fl_update_display(int block);
 
 #define fl_diagline(x, y, w, h, c) fl_line(x, y, (x) + (w)-1, (y) + (h)-1, c)
 
@@ -1618,172 +1426,127 @@ FL_EXPORT void fl_update_display(int block){};
 
 enum { FL_SOLID = LineSolid, FL_USERDASH = LineOnOffDash, FL_USERDOUBLEDASH = LineDoubleDash, FL_DOT, FL_DOTDASH, FL_DASH, FL_LONGDASH };
 
-FL_EXPORT void fl_linewidth(int n){};
+FL_EXPORT void fl_linewidth(int n);
 
-FL_EXPORT void fl_linestyle(int n){};
+FL_EXPORT void fl_linestyle(int n);
 
-FL_EXPORT void fl_drawmode(int request){};
+FL_EXPORT void fl_drawmode(int request);
 
-FL_EXPORT int fl_get_linewidth(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_linewidth(void);
 
-FL_EXPORT int fl_get_linestyle(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_linestyle(void);
 
-FL_EXPORT int fl_get_drawmode(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_drawmode(void);
 
 
 /*
  * Interfaces
  */
 
-FL_EXPORT XFontStruct *fl_get_fontstruct(int style, int size){};
+FL_EXPORT XFontStruct *fl_get_fontstruct(int style, int size);
 
 #define fl_get_font_struct fl_get_fontstruct
 
-FL_EXPORT Window fl_get_mouse(FL_Coord *x, FL_Coord *y, unsigned int *keymask)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_get_mouse(FL_Coord *x, FL_Coord *y, unsigned int *keymask);
 
-FL_EXPORT void fl_set_mouse(FL_Coord mx, FL_Coord my){};
+FL_EXPORT void fl_set_mouse(FL_Coord mx, FL_Coord my);
 
-FL_EXPORT Window fl_get_win_mouse(Window win, FL_Coord *x, FL_Coord *y, unsigned int *keymask)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_get_win_mouse(Window win, FL_Coord *x, FL_Coord *y, unsigned int *keymask);
 
-FL_EXPORT Window fl_get_form_mouse(FL_FORM *fm, FL_Coord *x, FL_Coord *y, unsigned int *keymask)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_get_form_mouse(FL_FORM *fm, FL_Coord *x, FL_Coord *y, unsigned int *keymask);
 
-FL_EXPORT FL_FORM *fl_win_to_form(Window win)
-{
-  return NULL;
-};
+FL_EXPORT FL_FORM *fl_win_to_form(Window win);
 
-FL_EXPORT void fl_set_form_icon(FL_FORM *form, Pixmap p, Pixmap m){};
+FL_EXPORT void fl_set_form_icon(FL_FORM *form, Pixmap p, Pixmap m);
 
-FL_EXPORT int fl_get_decoration_sizes(FL_FORM *form, int *top, int *right, int *bottom, int *left)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_decoration_sizes(FL_FORM *form, int *top, int *right, int *bottom, int *left);
 
-FL_EXPORT void fl_raise_form(FL_FORM *form){};
+FL_EXPORT void fl_raise_form(FL_FORM *form);
 
-FL_EXPORT void fl_lower_form(FL_FORM *form){};
+FL_EXPORT void fl_lower_form(FL_FORM *form);
 
-FL_EXPORT void fl_set_foreground(GC gc, FL_COLOR color){};
-FL_EXPORT void fl_set_background(GC gc, FL_COLOR color){};
+FL_EXPORT void fl_set_foreground(GC gc, FL_COLOR color);
+FL_EXPORT void fl_set_background(GC gc, FL_COLOR color);
 
 /* General windowing support */
 
-FL_EXPORT Window fl_wincreate(const char *label)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_wincreate(const char *label);
 
-FL_EXPORT Window fl_winshow(Window win)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_winshow(Window win);
 
-FL_EXPORT Window fl_winopen(const char *label)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_winopen(const char *label);
 
-FL_EXPORT void fl_winhide(Window win){};
+FL_EXPORT void fl_winhide(Window win);
 
-FL_EXPORT void fl_winclose(Window win){};
+FL_EXPORT void fl_winclose(Window win);
 
-FL_EXPORT void fl_winset(Window win){};
+FL_EXPORT void fl_winset(Window win);
 
-FL_EXPORT int fl_winreparent(Window win, Window new_parent)
-{
-  return 0;
-};
+FL_EXPORT int fl_winreparent(Window win, Window new_parent);
 
-FL_EXPORT void fl_winfocus(Window win){};
+FL_EXPORT void fl_winfocus(Window win);
 
-FL_EXPORT Window fl_winget(void)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_winget(void);
 
-FL_EXPORT int fl_iconify(Window win)
-{
-  return 0;
-};
+FL_EXPORT int fl_iconify(Window win);
 
-FL_EXPORT void fl_winresize(Window win, FL_Coord neww, FL_Coord newh){};
+FL_EXPORT void fl_winresize(Window win, FL_Coord neww, FL_Coord newh);
 
-FL_EXPORT void fl_winmove(Window win, FL_Coord dx, FL_Coord dy){};
+FL_EXPORT void fl_winmove(Window win, FL_Coord dx, FL_Coord dy);
 
-FL_EXPORT void fl_winreshape(Window win, FL_Coord dx, FL_Coord dy, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_winreshape(Window win, FL_Coord dx, FL_Coord dy, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_winicon(Window win, Pixmap p, Pixmap m){};
+FL_EXPORT void fl_winicon(Window win, Pixmap p, Pixmap m);
 
-FL_EXPORT void fl_winbackground(Window win, unsigned long bk){};
+FL_EXPORT void fl_winbackground(Window win, unsigned long bk);
 
-FL_EXPORT void fl_winstepsize(Window win, FL_Coord dx, FL_Coord dy){};
+FL_EXPORT void fl_winstepsize(Window win, FL_Coord dx, FL_Coord dy);
 
-FL_EXPORT int fl_winisvalid(Window win)
-{
-  return 0;
-};
+FL_EXPORT int fl_winisvalid(Window win);
 
-FL_EXPORT void fl_wintitle(Window win, const char *title){};
+FL_EXPORT void fl_wintitle(Window win, const char *title);
 
-FL_EXPORT void fl_wintitle_f(Window win, const char *fmt, ...){};
+FL_EXPORT void fl_wintitle_f(Window win, const char *fmt, ...);
 
-FL_EXPORT void fl_winicontitle(Window win, const char *title){};
+FL_EXPORT void fl_winicontitle(Window win, const char *title);
 
-FL_EXPORT void fl_winicontitle_f(Window win, const char *fmt, ...){};
+FL_EXPORT void fl_winicontitle_f(Window win, const char *fmt, ...);
 
-FL_EXPORT void fl_winposition(FL_Coord x, FL_Coord y){};
+FL_EXPORT void fl_winposition(FL_Coord x, FL_Coord y);
 
 #define fl_pref_winposition fl_winposition
 
-FL_EXPORT void fl_winminsize(Window win, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_winminsize(Window win, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_winmaxsize(Window win, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_winmaxsize(Window win, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_winaspect(Window win, FL_Coord x, FL_Coord y){};
+FL_EXPORT void fl_winaspect(Window win, FL_Coord x, FL_Coord y);
 
-FL_EXPORT void fl_reset_winconstraints(Window win){};
+FL_EXPORT void fl_reset_winconstraints(Window win);
 
-FL_EXPORT void fl_winsize(FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_winsize(FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_initial_winsize(FL_Coord w, FL_Coord h){};
-
-
-FL_EXPORT void fl_initial_winstate(int state){};
-
-FL_EXPORT Colormap fl_create_colormap(XVisualInfo *xv, int nfill){};
-
-FL_EXPORT void fl_wingeometry(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_initial_winsize(FL_Coord w, FL_Coord h);
 
 
-FL_EXPORT void fl_initial_wingeometry(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_initial_winstate(int state);
 
-FL_EXPORT void fl_noborder(void){};
+FL_EXPORT Colormap fl_create_colormap(XVisualInfo *xv, int nfill);
 
-FL_EXPORT void fl_transient(void){};
+FL_EXPORT void fl_wingeometry(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_get_winsize(Window win, FL_Coord *w, FL_Coord *h){};
 
-FL_EXPORT void fl_get_winorigin(Window win, FL_Coord *x, FL_Coord *y){};
+FL_EXPORT void fl_initial_wingeometry(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_get_wingeometry(Window win, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h){};
+FL_EXPORT void fl_noborder(void);
+
+FL_EXPORT void fl_transient(void);
+
+FL_EXPORT void fl_get_winsize(Window win, FL_Coord *w, FL_Coord *h);
+
+FL_EXPORT void fl_get_winorigin(Window win, FL_Coord *x, FL_Coord *y);
+
+FL_EXPORT void fl_get_wingeometry(Window win, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h);
 
 /* For compatibility */
 
@@ -1797,7 +1560,7 @@ FL_EXPORT void fl_get_wingeometry(Window win, FL_Coord *x, FL_Coord *y, FL_Coord
 
 #define FL_ObjWin(o) (FL_IS_CANVAS(o) ? fl_get_canvas_id(o) : (o)->form->window)
 
-FL_EXPORT Window fl_get_real_object_window(FL_OBJECT *ob){};
+FL_EXPORT Window fl_get_real_object_window(FL_OBJECT *ob);
 
 
 /*  All registerable events, including Client Message */
@@ -1806,56 +1569,38 @@ FL_EXPORT Window fl_get_real_object_window(FL_OBJECT *ob){};
 
 /* Replacements for X functions that access the event queue */
 
-FL_EXPORT int fl_XNextEvent(XEvent *xev)
-{
-  return 0;
-};
+FL_EXPORT int fl_XNextEvent(XEvent *xev);
 
-FL_EXPORT int fl_XPeekEvent(XEvent *xev)
-{
-  return 0;
-};
+FL_EXPORT int fl_XPeekEvent(XEvent *xev);
 
-FL_EXPORT int fl_XEventsQueued(int mode)
-{
-  return 0;
-};
+FL_EXPORT int fl_XEventsQueued(int mode);
 
-FL_EXPORT void fl_XPutBackEvent(XEvent *xev){};
+FL_EXPORT void fl_XPutBackEvent(XEvent *xev);
 
-FL_EXPORT const XEvent *fl_last_event(void)
-{
-  return NULL;
-};
+FL_EXPORT const XEvent *fl_last_event(void);
 
 typedef int (*FL_APPEVENT_CB)(XEvent *, void *);
 
-FL_EXPORT FL_APPEVENT_CB fl_set_event_callback(FL_APPEVENT_CB callback, void *user_data){};
+FL_EXPORT FL_APPEVENT_CB fl_set_event_callback(FL_APPEVENT_CB callback, void *user_data);
 
-FL_EXPORT FL_APPEVENT_CB fl_set_idle_callback(FL_APPEVENT_CB callback, void *user_data){};
+FL_EXPORT FL_APPEVENT_CB fl_set_idle_callback(FL_APPEVENT_CB callback, void *user_data);
 
-FL_EXPORT long fl_addto_selected_xevent(Window win, long mask)
-{
-  return 0;
-};
+FL_EXPORT long fl_addto_selected_xevent(Window win, long mask);
 
-FL_EXPORT long fl_remove_selected_xevent(Window win, long mask)
-{
-  return 0;
-};
+FL_EXPORT long fl_remove_selected_xevent(Window win, long mask);
 
 
-FL_EXPORT void fl_set_idle_delta(long delta){};
+FL_EXPORT void fl_set_idle_delta(long delta);
 
-FL_EXPORT FL_APPEVENT_CB fl_add_event_callback(Window win, int ev, FL_APPEVENT_CB wincb, void *user_data){};
+FL_EXPORT FL_APPEVENT_CB fl_add_event_callback(Window win, int ev, FL_APPEVENT_CB wincb, void *user_data);
 
-FL_EXPORT void fl_remove_event_callback(Window win, int ev){};
+FL_EXPORT void fl_remove_event_callback(Window win, int ev);
 
-FL_EXPORT void fl_activate_event_callbacks(Window win){};
+FL_EXPORT void fl_activate_event_callbacks(Window win);
 
-FL_EXPORT XEvent *fl_print_xevent_name(const char *where, const XEvent *xev){};
+FL_EXPORT XEvent *fl_print_xevent_name(const char *where, const XEvent *xev);
 
-FL_EXPORT void fl_XFlush(void){};
+FL_EXPORT void fl_XFlush(void);
 
 #define metakey_down(mask) ((mask)&Mod1Mask)
 #define shiftkey_down(mask) ((mask)&ShiftMask)
@@ -1879,28 +1624,19 @@ typedef struct {
 
 #define FL_CMD_OPT XrmOptionDescRec
 
-FL_EXPORT Display *fl_initialize(int *na, char *arg[], const char *appclass, FL_CMD_OPT *appopt, int nappopt)
-{
-  return NULL;
-};
+FL_EXPORT Display *fl_initialize(int *na, char *arg[], const char *appclass, FL_CMD_OPT *appopt, int nappopt);
 
-FL_EXPORT void fl_finish(void){};
+FL_EXPORT void fl_finish(void);
 
-FL_EXPORT const char *fl_get_resource(const char *rname, const char *cname, FL_RTYPE dtype, const char *defval, void *val, int size)
-{
-  return NULL;
-};
+FL_EXPORT const char *fl_get_resource(const char *rname, const char *cname, FL_RTYPE dtype, const char *defval, void *val, int size);
 
-FL_EXPORT void fl_set_resource(const char *str, const char *val){};
+FL_EXPORT void fl_set_resource(const char *str, const char *val);
 
-FL_EXPORT void fl_get_app_resources(FL_RESOURCE *appresource, int n){};
+FL_EXPORT void fl_get_app_resources(FL_RESOURCE *appresource, int n);
 
-FL_EXPORT void fl_set_visualID(long id){};
+FL_EXPORT void fl_set_visualID(long id);
 
-FL_EXPORT int fl_keysym_pressed(KeySym k)
-{
-  return 0;
-};
+FL_EXPORT int fl_keysym_pressed(KeySym k);
 
 
 /* All Form control variables. Named closely as its resource name */
@@ -1963,56 +1699,35 @@ enum {
 };
 
 
-FL_EXPORT void fl_set_defaults(unsigned long mask, FL_IOPT *cntl){};
+FL_EXPORT void fl_set_defaults(unsigned long mask, FL_IOPT *cntl);
 
-FL_EXPORT void fl_set_tabstop(const char *s){};
+FL_EXPORT void fl_set_tabstop(const char *s);
 
-FL_EXPORT int fl_get_visual_depth(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_visual_depth(void);
 
-FL_EXPORT int fl_is_global_clipped(void)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_global_clipped(void);
 
-FL_EXPORT int fl_is_clipped(int include_global)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_clipped(int include_global);
 
-FL_EXPORT int fl_is_text_clipped(int include_global)
-{
-  return 0;
-};
+FL_EXPORT int fl_is_text_clipped(int include_global);
 
-FL_EXPORT void fl_set_clipping(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_clipping(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_unset_clipping(){};
+FL_EXPORT void fl_unset_clipping();
 
-FL_EXPORT void fl_set_text_clipping(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_text_clipping(FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_unset_text_clipping(void){};
+FL_EXPORT void fl_unset_text_clipping(void);
 
-FL_EXPORT int fl_get_global_clipping(FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_global_clipping(FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h);
 
-FL_EXPORT int fl_get_clipping(int include_global, FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_clipping(int include_global, FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h);
 
-FL_EXPORT int fl_get_text_clipping(int include_global, FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_text_clipping(int include_global, FL_COORD *x, FL_COORD *y, FL_COORD *w, FL_COORD *h);
 
-FL_EXPORT void fl_set_gc_clipping(GC gc, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h){};
+FL_EXPORT void fl_set_gc_clipping(GC gc, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h);
 
-FL_EXPORT void fl_unset_gc_clipping(GC gc){};
+FL_EXPORT void fl_unset_gc_clipping(GC gc);
 
 /* How we pack and unpack colors */
 
@@ -2083,15 +1798,9 @@ typedef struct {
 
 /* Type is already defined in Basic.h */
 
-FL_EXPORT FL_OBJECT *fl_create_box(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_create_box(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
-FL_EXPORT FL_OBJECT *fl_add_box(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_add_box(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
 #endif /* ! defined FL_BOX_H */
 
@@ -2118,59 +1827,41 @@ typedef int (*FL_MODIFY_CANVAS_PROP)(FL_OBJECT *);
 
 /************ Interfaces    ************************/
 
-FL_EXPORT FL_OBJECT *fl_create_generic_canvas(int canvas_class, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_create_generic_canvas(int canvas_class, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
 extern FL_OBJECT *websrv_fl_add_canvas(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
-FL_EXPORT FL_OBJECT *fl_create_canvas(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_create_canvas(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
   /* backward compatibility */
 
 
-FL_EXPORT void fl_set_canvas_colormap(FL_OBJECT *ob, Colormap colormap){};
+FL_EXPORT void fl_set_canvas_colormap(FL_OBJECT *ob, Colormap colormap);
 
-FL_EXPORT void fl_set_canvas_visual(FL_OBJECT *obj, Visual *vi){};
+FL_EXPORT void fl_set_canvas_visual(FL_OBJECT *obj, Visual *vi);
 
-FL_EXPORT void fl_set_canvas_depth(FL_OBJECT *obj, int depth){};
+FL_EXPORT void fl_set_canvas_depth(FL_OBJECT *obj, int depth);
 
-FL_EXPORT void fl_set_canvas_attributes(FL_OBJECT *ob, unsigned int mask, XSetWindowAttributes *xswa){};
+FL_EXPORT void fl_set_canvas_attributes(FL_OBJECT *ob, unsigned int mask, XSetWindowAttributes *xswa);
 
-FL_EXPORT FL_HANDLE_CANVAS fl_add_canvas_handler(FL_OBJECT *ob, int ev, FL_HANDLE_CANVAS h, void *udata)
-{
-  return NULL;
-};
+FL_EXPORT FL_HANDLE_CANVAS fl_add_canvas_handler(FL_OBJECT *ob, int ev, FL_HANDLE_CANVAS h, void *udata);
 
 
-FL_EXPORT Window fl_get_canvas_id(FL_OBJECT *ob)
-{
-  return NULL;
-};
+FL_EXPORT Window fl_get_canvas_id(FL_OBJECT *ob);
 
-FL_EXPORT Colormap fl_get_canvas_colormap(FL_OBJECT *ob)
-{
-  return NULL;
-};
+FL_EXPORT Colormap fl_get_canvas_colormap(FL_OBJECT *ob);
 
-FL_EXPORT int fl_get_canvas_depth(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_canvas_depth(FL_OBJECT *obj);
 
-FL_EXPORT void fl_remove_canvas_handler(FL_OBJECT *ob, int ev, FL_HANDLE_CANVAS h){};
+FL_EXPORT void fl_remove_canvas_handler(FL_OBJECT *ob, int ev, FL_HANDLE_CANVAS h);
 
-FL_EXPORT void fl_share_canvas_colormap(FL_OBJECT *ob, Colormap colormap){};
+FL_EXPORT void fl_share_canvas_colormap(FL_OBJECT *ob, Colormap colormap);
 
-FL_EXPORT void fl_clear_canvas(FL_OBJECT *ob){};
+FL_EXPORT void fl_clear_canvas(FL_OBJECT *ob);
 
-FL_EXPORT void fl_modify_canvas_prop(FL_OBJECT *obj, FL_MODIFY_CANVAS_PROP init, FL_MODIFY_CANVAS_PROP activate, FL_MODIFY_CANVAS_PROP cleanup){};
+FL_EXPORT void fl_modify_canvas_prop(FL_OBJECT *obj, FL_MODIFY_CANVAS_PROP init, FL_MODIFY_CANVAS_PROP activate, FL_MODIFY_CANVAS_PROP cleanup);
 
-FL_EXPORT void fl_canvas_yield_to_shortcut(FL_OBJECT *ob, int yes){};
+FL_EXPORT void fl_canvas_yield_to_shortcut(FL_OBJECT *ob, int yes);
 
 /* This is an attempt to maintain some sort of backwards compatibility
  * with old code whilst also getting rid of the old, system-specific
@@ -2195,15 +1886,9 @@ enum { FL_NORMAL_TEXT };
 
 #define FL_TEXT_ALIGN (FL_ALIGN_LEFT | FL_ALIGN_INSIDE)
 
-FL_EXPORT FL_OBJECT *fl_create_text(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_create_text(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
-FL_EXPORT FL_OBJECT *fl_add_text(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_add_text(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
 #endif /* ! defined FL_TEXT_H */
 
@@ -2243,53 +1928,38 @@ enum { FL_GRID_NONE = 0, FL_GRID_MAJOR = 1, FL_GRID_MINOR = 2 };
 
 /***** Others   *****/
 
-FL_EXPORT FL_OBJECT *fl_create_xyplot(int t, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label)
-{
-  return NULL;
-};
+FL_EXPORT FL_OBJECT *fl_create_xyplot(int t, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
 extern FL_OBJECT *websrv_fl_add_xyplot(int t, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
 
-FL_EXPORT void fl_set_xyplot_data(FL_OBJECT *ob, float *x, float *y, int n, const char *title, const char *xlabel, const char *ylabel){};
+FL_EXPORT void fl_set_xyplot_data(FL_OBJECT *ob, float *x, float *y, int n, const char *title, const char *xlabel, const char *ylabel);
 
-FL_EXPORT void fl_set_xyplot_data_double(FL_OBJECT *ob, double *x, double *y, int n, const char *title, const char *xlabel, const char *ylabel){};
+FL_EXPORT void fl_set_xyplot_data_double(FL_OBJECT *ob, double *x, double *y, int n, const char *title, const char *xlabel, const char *ylabel);
 
-FL_EXPORT int fl_set_xyplot_file(FL_OBJECT *ob, const char *f, const char *title, const char *xl, const char *yl)
-{
-  return 0;
-};
+FL_EXPORT int fl_set_xyplot_file(FL_OBJECT *ob, const char *f, const char *title, const char *xl, const char *yl);
 
-FL_EXPORT void fl_insert_xyplot_data(FL_OBJECT *ob, int id, int n, double x, double y){};
+FL_EXPORT void fl_insert_xyplot_data(FL_OBJECT *ob, int id, int n, double x, double y);
 
 
-FL_EXPORT void fl_add_xyplot_text(FL_OBJECT *ob, double x, double y, const char *text, int al, FL_COLOR col){};
+FL_EXPORT void fl_add_xyplot_text(FL_OBJECT *ob, double x, double y, const char *text, int al, FL_COLOR col);
 
-FL_EXPORT void fl_delete_xyplot_text(FL_OBJECT *ob, const char *text){};
+FL_EXPORT void fl_delete_xyplot_text(FL_OBJECT *ob, const char *text);
 
-FL_EXPORT int fl_set_xyplot_maxoverlays(FL_OBJECT *ob, int maxover)
-{
-  return 0;
-};
+FL_EXPORT int fl_set_xyplot_maxoverlays(FL_OBJECT *ob, int maxover);
 
-FL_EXPORT void fl_add_xyplot_overlay(FL_OBJECT *ob, int id, float *x, float *y, int n, FL_COLOR col)
-{
-  return;
-};
+FL_EXPORT void fl_add_xyplot_overlay(FL_OBJECT *ob, int id, float *x, float *y, int n, FL_COLOR col);
 
-FL_EXPORT void fl_set_xyplot_xbounds(FL_OBJECT *ob, double xmin, double xmax){};
+FL_EXPORT void fl_set_xyplot_xbounds(FL_OBJECT *ob, double xmin, double xmax);
 
-FL_EXPORT void fl_set_xyplot_ybounds(FL_OBJECT *ob, double ymin, double ymax){};
+FL_EXPORT void fl_set_xyplot_ybounds(FL_OBJECT *ob, double ymin, double ymax);
 
-FL_EXPORT void fl_get_xyplot_xbounds(FL_OBJECT *ob, float *xmin, float *xmax){};
+FL_EXPORT void fl_get_xyplot_xbounds(FL_OBJECT *ob, float *xmin, float *xmax);
 
-FL_EXPORT void fl_get_xyplot_ybounds(FL_OBJECT *ob, float *ymin, float *ymax){};
+FL_EXPORT void fl_get_xyplot_ybounds(FL_OBJECT *ob, float *ymin, float *ymax);
 
-FL_EXPORT void fl_get_xyplot(FL_OBJECT *ob, float *x, float *y, int *i){};
+FL_EXPORT void fl_get_xyplot(FL_OBJECT *ob, float *x, float *y, int *i);
 
-FL_EXPORT int fl_get_xyplot_data_size(FL_OBJECT *obj)
-{
-  return 0;
-};
+FL_EXPORT int fl_get_xyplot_data_size(FL_OBJECT *obj);
 
 extern void websrv_fl_get_xyplot_data(FL_OBJECT *ob, float *x, float *y, int *n);
 
@@ -2297,15 +1967,12 @@ extern void websrv_fl_get_xyplot_data_pointer(FL_OBJECT *ob, int id, float **x, 
 
 
 
-FL_EXPORT void fl_set_xyplot_xgrid(FL_OBJECT *ob, int xgrid){};
+FL_EXPORT void fl_set_xyplot_xgrid(FL_OBJECT *ob, int xgrid);
 
 
 typedef void (*FL_XYPLOT_SYMBOL)(FL_OBJECT *, int, FL_POINT *, int, int, int);
 
-FL_EXPORT FL_XYPLOT_SYMBOL fl_set_xyplot_symbol(FL_OBJECT *ob, int id, FL_XYPLOT_SYMBOL symbol)
-{
-  return NULL;
-};
+FL_EXPORT FL_XYPLOT_SYMBOL fl_set_xyplot_symbol(FL_OBJECT *ob, int id, FL_XYPLOT_SYMBOL symbol);
 
 #endif  /* FL_XYPLOT_H */
 
@@ -2314,6 +1981,21 @@ FL_EXPORT FL_XYPLOT_SYMBOL fl_set_xyplot_symbol(FL_OBJECT *ob, int id, FL_XYPLOT
 
 extern int websrv_nf_getdata(FL_OBJECT *graph, int layer, websrv_scopedata_msg_t **msg);
 extern void websrv_free_xyplot(FL_OBJECT *obj);
+
+/* Webserver-specific versions used when WEBSRVSCOPE is defined */
+/* These are called via macros in nr_phy_scope.c */
+FL_FORM *websrv_fl_bgn_form(int type, FL_Coord w, FL_Coord h);
+void websrv_fl_end_form(void);
+FL_OBJECT *websrv_fl_do_forms(void);
+
+/* Additional XForms functions used by nr_phy_scope.c */
+FL_OBJECT *fl_add_browser(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
+FL_OBJECT *fl_add_button(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label);
+FL_OBJECT *fl_get_button(FL_OBJECT *ob);
+void fl_set_button(FL_OBJECT *ob, int val);
+void fl_set_browser_fontsize(FL_OBJECT *ob, int size);
+void fl_set_xyplot_xtics(FL_OBJECT *ob, int xtics);
+
 #if defined __cplusplus
 }
 #endif

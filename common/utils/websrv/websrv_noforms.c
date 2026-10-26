@@ -91,3 +91,77 @@ int websrv_nf_getdata(FL_OBJECT *graph, int layer, websrv_scopedata_msg_t **msg)
   *msg = spec->buff[layer].buf;
   return spec->n[layer];
 }
+
+/* Additional XForms stub functions for nr_phy_scope.c */
+/* When WEBSRVSCOPE is defined, nr_phy_scope.c uses these functions */
+
+FL_FORM *fl_bgn_form(int type, FL_Coord w, FL_Coord h)
+{
+  FL_FORM *form = (FL_FORM *)calloc(1, sizeof(FL_FORM));
+  if (form) {
+    form->w = w;
+    form->h = h;
+  }
+  return form;
+}
+
+void fl_end_form(void) {}
+FL_OBJECT *fl_check_forms(void) { return NULL; }
+FL_OBJECT *fl_do_forms(void) { return NULL; }
+void fl_freeze_form(FL_FORM *form) {}
+void fl_unfreeze_form(FL_FORM *form) {}
+void fl_redraw_form(FL_FORM *form) {}
+Window fl_show_form(FL_FORM *form, int place, int border, const char *name) { return NULL; }
+void fl_winset(Window win) {}
+void fl_set_form_dblbuffer(FL_FORM *form, int y) {}
+FL_OBJECT *fl_add_box(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+FL_OBJECT *fl_add_browser(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+FL_OBJECT *fl_add_button(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+FL_OBJECT *fl_add_canvas(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+FL_OBJECT *fl_add_text(int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+FL_OBJECT *fl_add_xyplot(int t, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label) { return NULL; }
+void fl_add_xyplot_overlay(FL_OBJECT *ob, int id, float *x, float *y, int n, FL_COLOR col) {}
+void fl_get_object_bbox(FL_OBJECT *obj, FL_Coord *x, FL_Coord *y, FL_Coord *w, FL_Coord *h) { if (x) *x = 0; if (y) *y = 0; if (w) *w = 0; if (h) *h = 0; }
+FL_OBJECT *fl_get_button(FL_OBJECT *ob) { return NULL; }
+void fl_set_button(FL_OBJECT *ob, int val) {}
+void fl_hide_object(FL_OBJECT *ob) {}
+void fl_redraw_object(FL_OBJECT *obj) {}
+void fl_set_object_color(FL_OBJECT *ob, FL_COLOR col1, FL_COLOR col2) {}
+FL_CALLBACKPTR fl_set_object_callback(FL_OBJECT *obj, FL_CALLBACKPTR callback, long argument) { return NULL; }
+void fl_set_object_label(FL_OBJECT *ob, const char *label) {}
+void fl_set_object_label_f(FL_OBJECT *obj, const char *fmt, ...) {}
+void fl_set_object_lalign(FL_OBJECT *obj, int align) {}
+void fl_set_object_lcolor(FL_OBJECT *ob, FL_COLOR lcol) {}
+void fl_set_object_lsize(FL_OBJECT *obj, int lsize) {}
+void fl_get_xyplot_data(FL_OBJECT *ob, float *x, float *y, int *n) { if (n) *n = 0; }
+void fl_get_xyplot_data_pointer(FL_OBJECT *ob, int id, float **x, float **y, int *n) { if (n) *n = 0; if (x) *x = NULL; if (y) *y = NULL; }
+void fl_get_xyplot_ybounds(FL_OBJECT *ob, float *ymin, float *ymax) { if (ymin) *ymin = 0; if (ymax) *ymax = 0; }
+void fl_set_xyplot_data(FL_OBJECT *ob, float *x, float *y, int n, const char *title, const char *xlabel, const char *ylabel) {}
+FL_XYPLOT_SYMBOL fl_set_xyplot_symbol(FL_OBJECT *ob, int id, FL_XYPLOT_SYMBOL symbol) { return NULL; }
+void fl_set_xyplot_xbounds(FL_OBJECT *ob, double xmin, double xmax) {}
+void fl_set_xyplot_xgrid(FL_OBJECT *ob, int xgrid) {}
+void fl_set_xyplot_xtics(FL_OBJECT *ob, int xtics) {}
+void fl_set_xyplot_ybounds(FL_OBJECT *ob, double ymin, double ymax) {}
+void fl_point(FL_Coord x, FL_Coord y, FL_COLOR c) {}
+void fl_points(FL_POINT *p, int np, FL_COLOR c) {}
+void fl_set_browser_fontsize(FL_OBJECT *ob, int size) {}
+
+/* Additional stubs for functions used in nr_phy_scope.c */
+Display *fl_initialize(int *na, char *arg[], const char *appclass, FL_CMD_OPT *appopt, int nappopt) { return NULL; }
+void fl_set_form_callback(FL_FORM *form, FL_FORMCALLBACKPTR callback, void *d) {}
+
+/* Webserver-specific versions (renamed via macros in nr_phy_scope.c) */
+FL_FORM *websrv_fl_bgn_form(int type, FL_Coord w, FL_Coord h)
+{
+  return fl_bgn_form(type, w, h);
+}
+
+FL_OBJECT *websrv_fl_do_forms(void)
+{
+  return fl_do_forms();
+}
+
+void websrv_fl_end_form(void)
+{
+  fl_end_form();
+}

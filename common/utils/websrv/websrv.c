@@ -458,13 +458,18 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
   } else {
     char *sptr = index(cmd->cmdname, ' ');
     char cmdbuff[TELNET_CMD_MAXSIZE*3]; //cmd + 2 parameters
-    snprintf(cmdbuff,sizeof(cmdbuff)-1, "%s%s%s %s",(sptr == NULL) ? "" : sptr,(sptr == NULL) ? "" : " ",(np>0) ? pvalue[0] : "",(np>1) ? pvalue[1] : "");
+    snprintf(cmdbuff, sizeof(cmdbuff)-1, "%s%s%s%s%s",
+            (sptr == NULL) ? "" : sptr,
+            (sptr == NULL) ? "" : " ",
+            (np > 0) ? pvalue[0] : "",
+            (np > 1) ? " " : "",
+            (np > 1) ? pvalue[1] : "");
     if (cmd->qptr != NULL) {
       websrv_printf_start(response, 16384, true);
-      telnet_pushcmd(cmd, cmdbuff, websrv_async_printf);
+      telnet_pushcmd(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_async_printf);
     } else {
       websrv_printf_start(response, 16384, false);
-      cmd->cmdfunc(cmdbuff, websrvparams.dbglvl, websrv_printf);
+      cmd->cmdfunc(cmdbuff[0] != '\0' ? cmdbuff : NULL, websrvparams.dbglvl, websrv_printf);
     }
     websrv_printf_end(http_status, websrvparams.dbglvl);
   }

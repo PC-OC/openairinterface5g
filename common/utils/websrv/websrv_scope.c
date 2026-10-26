@@ -19,7 +19,13 @@
 #include "openair1/PHY/TOOLS/phy_scope.h"
 #include "openair1/PHY/TOOLS/phy_scope_interface.h"
 #include "common/utils/load_module_shlib.h"
-#include "openair1/PHY/phy_extern_nr_ue.h"
+
+// To avoid undefined symbol errors when loading libwebsrv.so in gNB,
+// we declare the UE-specific global variable as a weak symbol.
+// This allows the library to load successfully even when the symbol
+// is not defined in the main executable (gNB case).
+#include "openair1/PHY/defs_nr_UE.h"
+extern PHY_VARS_NR_UE ***nrPHY_vars_UE_g __attribute__((weak));
 
 static websrv_scope_params_t scope_params = {0, 1000, NULL, NULL, 65535};
 static websrv_params_t *websrvparams_ptr;
@@ -85,7 +91,7 @@ int websrv_scope_manager(uint64_t lcount, websrv_params_t *websrvparams)
       if (IS_SOFTMODEM_GNB && (scope_params.statusmask & SCOPE_STATUSMASK_STARTED)) {
         phy_scope_gNB(scope_params.scopeform, scope_params.scopedata, scope_params.selectedTarget + 1 /* ue id, +1 as used in loop < limit */);
       }
-      if (IS_SOFTMODEM_5GUE && (scope_params.statusmask & SCOPE_STATUSMASK_STARTED)) {
+      if (IS_SOFTMODEM_5GUE && (scope_params.statusmask & SCOPE_STATUSMASK_STARTED) && scope_params.scopedata != NULL) {
         phy_scope_nrUE(((scopeData_t *)((PHY_VARS_NR_UE *)(scope_params.scopedata))->scopeData)->liveData,
                        scope_params.scopeform,
                        (PHY_VARS_NR_UE *)scope_params.scopedata,
@@ -123,11 +129,16 @@ char *websrv_scope_initdata(void)
     scope_params.statusmask |= SCOPE_STATUSMASK_AVAILABLE;
     return "gNB";
   } else if (IS_SOFTMODEM_5GUE) {
-    scope_params.scopedata = nrPHY_vars_UE_g[0][0];
-    nrUEinitScope(nrPHY_vars_UE_g[0][0]);
-    scope_params.scopeform = create_phy_scope_nrue(scope_params.selectedTarget);
-    scope_params.statusmask |= SCOPE_STATUSMASK_AVAILABLE;
-    return "5GUE";
+    // Check if UE PHY variables are available (weak symbol may be NULL if loaded in gNB)
+    if (nrPHY_vars_UE_g != NULL && nrPHY_vars_UE_g[0] != NULL && nrPHY_vars_UE_g[0][0] != NULL) {
+      scope_params.scopedata = nrPHY_vars_UE_g[0][0];
+      nrUEinitScope(nrPHY_vars_UE_g[0][0]);
+      scope_params.scopeform = create_phy_scope_nrue(scope_params.selectedTarget);
+      scope_params.statusmask |= SCOPE_STATUSMASK_AVAILABLE;
+      return "5GUE";
+    } else {
+      LOG_W(UTIL, "[websrv] UE PHY variables not available, scope not initialized for 5GUE\n");
+    }
   } else {
     LOG_I(UTIL, "[websrv] SoftScope web interface  not implemented for this softmodem\n");
   }

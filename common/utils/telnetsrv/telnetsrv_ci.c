@@ -405,6 +405,8 @@ static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
   UNUSED(debug);
   reset_current_client_pending_state();
 
+  if (!buf)
+    ERROR_MSG_RET("need BWP ID and RNTI\n");
   char *sbwpId = strtok(buf, " ");
   if (!sbwpId) {
     ERROR_MSG_RET("Missing BWP ID\n");

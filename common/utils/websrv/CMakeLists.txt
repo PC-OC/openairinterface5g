@@ -34,7 +34,6 @@ add_library(websrv MODULE
             websrv_websockets.c
             websrv_scope.c
             websrv_noforms.c
-            websrv_scope.c
             websrv_utils.c
             ../../../openair1/PHY/TOOLS/nr_phy_scope.c
 )

@@ -18,6 +18,9 @@
 #define fl_add_canvas websrv_fl_add_canvas
 #define fl_add_xyplot websrv_fl_add_xyplot
 #define fl_get_xyplot_data_pointer websrv_fl_get_xyplot_data_pointer
+#define fl_bgn_form websrv_fl_bgn_form
+#define fl_end_form websrv_fl_end_form
+#define fl_do_forms websrv_fl_do_forms
 #else
 #include <forms.h>
 #define STATICFORXSCOPE static
