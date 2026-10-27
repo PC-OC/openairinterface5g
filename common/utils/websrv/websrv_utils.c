@@ -25,6 +25,17 @@ typedef struct {
   bool async; // the buffer will be used to print from another thread than the callback (command pushed in a tpool queue)
 } websrv_printf_t;
 static websrv_printf_t websrv_printf_buff;
+
+// Initialize websrv_printf_buff.mutex as recursive to allow locking from multiple threads
+__attribute__((constructor)) static void websrv_utils_init(void)
+{
+  pthread_mutexattr_t attr;
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&websrv_printf_buff.mutex, &attr);
+  pthread_mutexattr_destroy(&attr);
+}
+
 /*--------------------- functions for help ------------------------*/
 /* possibly build a help file to be downloaded by the frontend */
 void websrv_utils_build_hlpfile(char *fname)
@@ -140,11 +151,12 @@ int websrv_string_response(char *astring, struct _u_response *response, int http
 void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
 {
   pthread_mutex_lock(&(websrv_printf_buff.mutex));
-  websrv_printf_buff.buff = malloc(buffsize);
+  websrv_printf_buff.buff = calloc(1, buffsize);
   websrv_printf_buff.buffptr = websrv_printf_buff.buff;
   websrv_printf_buff.buffsize = buffsize;
   websrv_printf_buff.response = response;
   websrv_printf_buff.async = async;
+  pthread_mutex_unlock(&(websrv_printf_buff.mutex));
 }
 
 void websrv_printf_atpos(int pos, const char *message, ...)
@@ -160,23 +172,30 @@ void websrv_printf_atpos(int pos, const char *message, ...)
 
 void websrv_printf(const char *message, ...)
 {
+  pthread_mutex_lock(&(websrv_printf_buff.mutex));
   va_list va_args;
   va_start(va_args, message);
   websrv_printf_buff.buffptr += vsnprintf(websrv_printf_buff.buffptr, websrv_printf_buff.buffsize - (websrv_printf_buff.buffptr - websrv_printf_buff.buff) - 1, message, va_args);
 
   va_end(va_args);
+  pthread_mutex_unlock(&(websrv_printf_buff.mutex));
   return;
 }
 
 void websrv_printf_end(int httpstatus, int dbglvl)
 {
+  pthread_mutex_lock(&(websrv_printf_buff.mutex));
   int count = 0;
   while (__atomic_load_n(&(websrv_printf_buff.async), __ATOMIC_SEQ_CST)) {
-    usleep(10);
-    if (count == 99) {
+    pthread_mutex_unlock(&(websrv_printf_buff.mutex));
+    usleep(10000); // Wait 10ms per iteration (instead of 10us)
+    if (count >= 200) { // Wait up to 200 * 10ms = 2000ms
+      pthread_mutex_lock(&(websrv_printf_buff.mutex));
       websrv_printf("No response from server...");
       break;
     }
+    pthread_mutex_lock(&(websrv_printf_buff.mutex));
+    count++;
   }
   if (httpstatus >= 200 && httpstatus < 300) {
     LOG_I(UTIL, "[websrv] %s\n", websrv_printf_buff.buff);
@@ -194,16 +213,18 @@ void websrv_printf_end(int httpstatus, int dbglvl)
 
 void websrv_async_printf(const char *message, ...)
 {
+  pthread_mutex_lock(&(websrv_printf_buff.mutex));
   if (__atomic_load_n(&(websrv_printf_buff.async), __ATOMIC_SEQ_CST)) {
     va_list va_args;
     va_start(va_args, message);
-    websrv_printf_buff.buffptr += vsnprintf(websrv_printf_buff.buff, websrv_printf_buff.buffsize - 1, message, va_args);
+    websrv_printf_buff.buffptr += vsnprintf(websrv_printf_buff.buffptr, websrv_printf_buff.buffsize - (websrv_printf_buff.buffptr - websrv_printf_buff.buff) - 1, message, va_args);
 
     va_end(va_args);
     __atomic_store_n(&(websrv_printf_buff.async), 0, __ATOMIC_SEQ_CST);
   } else {
     LOG_W(UTIL, "[websrv], delayed  websrv_async_printf skipped\n");
   }
+  pthread_mutex_unlock(&(websrv_printf_buff.mutex));
   return;
 }
 /* */

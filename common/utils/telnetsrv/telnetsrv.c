@@ -59,7 +59,7 @@ bool telnetsrv_o1_running = true;
 
 static pthread_mutex_t telnet_clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define TELNET_CMDQ_TIMEOUT_MS 200
+#define TELNET_CMDQ_TIMEOUT_MS 2000
 
 /* Response queue for telnet commands posted to queue. */
 static notifiedFIFO_t telnet_cmdrespq;
@@ -101,12 +101,15 @@ static void telnet_remove_client(int client_idx) {
   if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS) return;
   pthread_mutex_lock(&telnet_clients_mutex);
   if (telnet_clients[client_idx].active) {
-    itti_unsubscribe_event_fd(TASK_TELNET, telnet_clients[client_idx].socket);
-    close(telnet_clients[client_idx].socket);
-    telnet_clients[client_idx].socket = -1;
-    telnet_clients[client_idx].active = false;
-    telnet_reset_client_pending_state(client_idx);
-    num_telnet_clients--;
+    // Do not remove the websrv client (index WEBSRV_CLIENT_IDX)
+    if (client_idx != WEBSRV_CLIENT_IDX) {
+      itti_unsubscribe_event_fd(TASK_TELNET, telnet_clients[client_idx].socket);
+      close(telnet_clients[client_idx].socket);
+      telnet_clients[client_idx].socket = -1;
+      telnet_clients[client_idx].active = false;
+      telnet_reset_client_pending_state(client_idx);
+      num_telnet_clients--;
+    }
   }
   pthread_mutex_unlock(&telnet_clients_mutex);
 }
@@ -134,12 +137,6 @@ static void telnet_cleanup_all_clients(void) {
   num_telnet_clients = 0;
   pthread_mutex_unlock(&telnet_clients_mutex);
 }
-
-#define TELNET_LOG(fmt, ...)                               \
-  do {                                                     \
-    printf("[TELNETSRV] " fmt __VA_OPT__(, ) __VA_ARGS__); \
-    fflush(stdout);                                        \
-  } while (0)
 
 // clang-format off
 paramdef_t telnetoptions[] = {
@@ -195,6 +192,34 @@ void client_printf(const char *message, ...) {
   va_list va_args;
   va_start(va_args, message);
 
+  // Check if current client is websrv client
+  if (telnetparams.current_client_idx == WEBSRV_CLIENT_IDX && telnetparams.websrv_prnt) {
+    pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
+    if (telnetparams.websrv_prnt) {
+      telnetparams.websrv_prnt(message, va_args);
+      pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+      va_end(va_args);
+      return;
+    }
+    pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+  }
+  
+  // Legacy websrv_active check (for backward compatibility)
+  if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+    va_list va_args_copy;
+    va_copy(va_args_copy, va_args);
+    pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
+    if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+      telnetparams.websrv_prnt(message, va_args_copy);
+      va_end(va_args_copy);
+      pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+      va_end(va_args);
+      return;
+    }
+    pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+    va_end(va_args_copy);
+  }
+
   if (telnetparams.new_socket > 0) {
     vsnprintf(telnetparams.msgbuff,sizeof(telnetparams.msgbuff)-1,message, va_args);
     send(telnetparams.new_socket,telnetparams.msgbuff, strlen(telnetparams.msgbuff), MSG_NOSIGNAL);
@@ -207,16 +232,43 @@ void client_printf(const char *message, ...) {
 }
 
 void client_printf_to_client(int client_idx, const char *message, ...) {
+  va_list va_args;
+  va_start(va_args, message);
+
+  // Check if this is the websrv client
+  if (client_idx == WEBSRV_CLIENT_IDX && telnetparams.websrv_prnt) {
+    pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
+    if (telnetparams.websrv_prnt) {
+      telnetparams.websrv_prnt(message, va_args);
+      pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+      va_end(va_args);
+      return;
+    }
+    pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+  }
+  
+  // Legacy websrv_active check (for backward compatibility)
+  if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+    va_list va_args_copy;
+    va_copy(va_args_copy, va_args);
+    pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
+    if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+      telnetparams.websrv_prnt(message, va_args_copy);
+      va_end(va_args_copy);
+      va_end(va_args);
+      pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+      return;
+    }
+    pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+    va_end(va_args_copy);
+  }
+
   if (client_idx < 0 || client_idx >= TELNET_MAX_CLIENTS || !telnet_clients[client_idx].active) {
-    va_list va_args;
-    va_start(va_args, message);
     vfprintf(stderr, message, va_args);
     va_end(va_args);
     return;
   }
 
-  va_list va_args;
-  va_start(va_args, message);
   char msgbuff[TELNET_MAX_MSGLENGTH];
   vsnprintf(msgbuff, sizeof(msgbuff) - 1, message, va_args);
   send(telnet_clients[client_idx].socket, msgbuff, strlen(msgbuff), MSG_NOSIGNAL);
@@ -600,9 +652,18 @@ char *get_time(char *buff,int bufflen) {
 }
 static void telnet_pushcmd_key(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt, notifiedFIFO_t *respq, uint64_t key)
 {
+  if (cmd->qptr == NULL) {
+    cmd->cmdfunc(cmdbuff, telnetparams.telnetdbg, prnt);
+    if (respq != NULL) {
+      notifiedFIFO_elt_t *resp_msg = newNotifiedFIFO_elt(0, key, NULL, NULL);
+      pushNotifiedFIFO(respq, resp_msg);
+    }
+    return;
+  }
+
   notifiedFIFO_elt_t *msg = newNotifiedFIFO_elt(sizeof(telnetsrv_qmsg_t), key, respq, NULL);
   telnetsrv_qmsg_t *cmddata = NotifiedFifoData(msg);
-  cmddata->cmdfunc = (qcmdfunc_t)cmd->cmdfunc;
+  cmddata->cmdfunc = cmd->cmdfunc;
   cmddata->prnt = prnt;
   cmddata->debug = telnetparams.telnetdbg;
   cmddata->cmdbuff = cmdbuff != NULL ? strdup(cmdbuff) : NULL;
@@ -617,7 +678,7 @@ void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t
 /* \brief Push a command into the queue, and wait for the
  * module thread to execute it. Unrelated, late messages from previous jobs are
  * discarded. */
-static void telnet_pushcmd_wait(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt)
+void telnet_pushcmd_wait(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt)
 {
   static uint64_t cmdkey = 0;
   uint64_t key = ++cmdkey;
@@ -1264,13 +1325,14 @@ void *run_telnetsrv_itti(void *arg) {
 
 void poll_telnetcmdq(void *qid, void *arg)
 {
+  UNUSED(arg);
   notifiedFIFO_elt_t *msg = pollNotifiedFIFO((notifiedFIFO_t *)qid);
 
   if (msg == NULL)
     return;
 
   telnetsrv_qmsg_t *msgdata = NotifiedFifoData(msg);
-  msgdata->cmdfunc(msgdata->cmdbuff, msgdata->debug, msgdata->prnt, arg);
+  msgdata->cmdfunc(msgdata->cmdbuff, msgdata->debug, msgdata->prnt);
   free(msgdata->cmdbuff);
 
   if (msg->reponseFifo != NULL) {
@@ -1356,6 +1418,13 @@ int telnetsrv_autoinit(void) {
   load_module_shlib(libname,NULL,0,NULL);
   initNotifiedFIFO(&telnet_cmdrespq);
   telnetparams.new_socket = -1;
+  pthread_mutex_init(&telnetparams.websrv_callback_mutex, NULL);
+  telnetparams.websrv_active = false;
+  
+  // Initialize websrv client
+  telnet_clients[WEBSRV_CLIENT_IDX].active = true;
+  telnet_clients[WEBSRV_CLIENT_IDX].socket = -1;  // No socket for websrv client
+  telnetparams.websrv_prnt = NULL;
 
   add_telnetcmd("telnet", telnet_vardef, telnet_cmdarray);
   add_embeddedmodules();

@@ -10,6 +10,7 @@
 #include <ulfius.h>
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
+#include <time.h>
 #include "common/config/config_userapi.h"
 #include "common/utils/LOG/log.h"
 #include "common/utils/websrv/websrv.h"
@@ -427,12 +428,12 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
 	     jrt=json_unpack_ex(jparams, &jerror, 0, "[{s:s,s:s,s:s,s,b}]", "name", &pname[0], "value", &pvalue[0], "type", &ptype[0], "modifiable", &b);
 	   break;
 	   case 2:
-	     jrt=json_unpack_ex(jparams, &jerror, 0, "[{s:s,s:s,s:s,s,b},{s:s,s:s,s:s,s,b}]", 
+	     jrt=json_unpack_ex(jparams, &jerror, 0, "[{s:s,s:s,s:s,s,b},{s:s,s:s,s:s,s,b}]",
 	                                          "name", &pname[0], "value", &pvalue[0], "type", &ptype[0], "modifiable", &b[0],
-	                                          "name", &pname[1], "value", &pvalue[1], "type", &ptype[1], "modifiable", &b[1]);	   
+	                                          "name", &pname[1], "value", &pvalue[1], "type", &ptype[1], "modifiable", &b[1]);
 	   break;
 	   default:
-	     http_status=500;	   
+	     http_status=500;
 	   break;
 //     json_unpack_ex(jparams, &jerror, 0, "[{s:s,s:s,s:s,s,b}]", "name", &pname, "value", &pvalue, "type", &ptype, "modifiable", &b);
 
@@ -440,8 +441,8 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
     if (jrt <0 || http_status != 200) {
          LOG_I(UTIL, "[websrv], couldn't unpack jparams, module %s, command %s: %s\n", modulestruct->module, cmd->cmdname, jerror.text);
          websrv_printjson((char *)__FUNCTION__, jparams, websrvparams.dbglvl);
-         return 500;  
-    }	  
+         return 500;
+    }
   }
 
   if (cmd->cmdflags & TELNETSRV_CMDFLAG_GETWEBTBLDATA) {
@@ -464,13 +465,34 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
             (np > 0) ? pvalue[0] : "",
             (np > 1) ? " " : "",
             (np > 1) ? pvalue[1] : "");
-    if (cmd->qptr != NULL) {
-      websrv_printf_start(response, 16384, true);
-      telnet_pushcmd(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_async_printf);
-    } else {
-      websrv_printf_start(response, 16384, false);
-      cmd->cmdfunc(cmdbuff[0] != '\0' ? cmdbuff : NULL, websrvparams.dbglvl, websrv_printf);
+    websrv_printf_start(response, 16384, true);
+
+    telnetsrv_params_t *tparams = (telnetsrv_params_t *)websrvparams.telnetparams;
+    
+    // Save current client index and set to websrv client
+    int old_client_idx = -1;
+    if (tparams) {
+      old_client_idx = tparams->current_client_idx;
+      tparams->current_client_idx = WEBSRV_CLIENT_IDX;
     }
+    
+    // Set websrv_prnt for this command
+    if (tparams) {
+      pthread_mutex_lock(&tparams->websrv_callback_mutex);
+      tparams->websrv_prnt = websrv_printf;
+      pthread_mutex_unlock(&tparams->websrv_callback_mutex);
+    }
+
+    telnet_pushcmd_wait(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_printf);
+
+    // Restore old client index
+    if (tparams) {
+      tparams->current_client_idx = old_client_idx;
+      pthread_mutex_lock(&tparams->websrv_callback_mutex);
+      tparams->websrv_prnt = NULL;
+      pthread_mutex_unlock(&tparams->websrv_callback_mutex);
+    }
+
     websrv_printf_end(http_status, websrvparams.dbglvl);
   }
   return http_status;

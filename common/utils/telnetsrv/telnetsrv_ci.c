@@ -285,7 +285,6 @@ int force_ue_release(char *buf, int debug, telnet_printfunc_t prnt)
       msg_p->ittiMsg.mac_force_ue_release.client_idx = telnetsrv_get_current_client_idx();
     }
     itti_send_msg_to_task(TASK_MAC_GNB, 0, msg_p);
-    prnt("Reset RLC counters and triggered UE release for UE RNTI %04x\n", rnti);
     return 0;
   }
 }

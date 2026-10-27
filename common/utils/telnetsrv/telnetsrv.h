@@ -12,11 +12,36 @@
 #include <common/ran_context.h>
 #include "stdbool.h"
 
+#include <sys/socket.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+#define TELNET_LOG(fmt, ...)                               \
+  do {                                                     \
+    if (telnetparams.websrv_active && telnetparams.websrv_prnt) { \
+      pthread_mutex_lock(&telnetparams.websrv_callback_mutex); \
+      if (telnetparams.websrv_active && telnetparams.websrv_prnt) { \
+        telnetparams.websrv_prnt("[TELNETSRV] " fmt, ##__VA_ARGS__); \
+        pthread_mutex_unlock(&telnetparams.websrv_callback_mutex); \
+      } else { \
+        pthread_mutex_unlock(&telnetparams.websrv_callback_mutex); \
+        printf("[TELNETSRV] " fmt __VA_OPT__(, ) __VA_ARGS__); \
+        fflush(stdout); \
+      } \
+    } else { \
+      printf("[TELNETSRV] " fmt __VA_OPT__(, ) __VA_ARGS__); \
+      fflush(stdout); \
+    } \
+  } while (0)
+
 #define TELNET_MAX_MSGLENGTH      2048
 #define TELNET_PROMPT_PREFIX      "softmodem"
 #define TELNET_MAXCMD             64
 #define TELNET_CMD_MAXSIZE        64
 #define TELNET_HELPSTR_SIZE       80
+
+#define WEBSRV_CLIENT_IDX 0  // Dedicated client index for websrv
 
 /* status return by the command parser after it analysed user input */
 #define CMDSTATUS_NOCMD       0
@@ -54,7 +79,6 @@ typedef void(*telnet_printfunc_t)(const char* format, ...);
 typedef int(*cmdfunc_t)(char*, int, telnet_printfunc_t prnt);
 typedef int (*webfunc_t)(char *cmdbuff, int debug, telnet_printfunc_t prnt, ...);
 typedef int (*webfunc_getdata_t)(const char *cmdbuff, int debug, void *data, telnet_printfunc_t prnt);
-typedef int(*qcmdfunc_t)(char*, int, telnet_printfunc_t prnt,void *arg);
 
 #define TELNETSRV_CMDFLAG_PUSHINTPOOLQ (1 << 0) // ask the telnet server to push the command in a thread pool queue
 #define TELNETSRV_CMDFLAG_GETWEBDATA (1 << 1) // When called from web server, use the getdata variant of the function
@@ -101,7 +125,7 @@ typedef struct cmddef {
 /* structure used to send a command via a message queue to enable */
 /* executing a command in a thread different from the telnet server thread */
 typedef struct telnetsrv_qmsg {
-  qcmdfunc_t cmdfunc;
+  cmdfunc_t cmdfunc;
   telnet_printfunc_t prnt;
   int debug;
   char *cmdbuff;
@@ -167,6 +191,9 @@ typedef struct {
      unsigned int   loopcount;            // loop command param: number of loop iteration
      unsigned int   loopdelay;            // loop command param: delay in ms between 2 iterations
      unsigned int   phyprntbuff_size;     // for phy module,  dump_eNB_stats function buffer size
+     pthread_mutex_t websrv_callback_mutex; // mutex to protect websrv callback access
+     bool websrv_active;              // true when processing a web request
+     telnet_printfunc_t websrv_prnt;   // callback for web server responses
 } telnetsrv_params_t;
 
 #ifdef TELNETSERVERCODE
@@ -175,6 +202,41 @@ extern telnetsrv_params_t telnetparams;
 static inline int telnetsrv_get_current_client_idx(void) {
   return telnetparams.current_client_idx;
 }
+
+#define MAX_PENDING_WEBSRV_RESPONSES 10
+
+typedef struct {
+  bool received;
+  char buffer[TELNET_MAX_MSGLENGTH];
+  uint64_t request_id;
+} pending_websrv_response_t;
+
+static inline void telnetsrv_print_response(int client_idx, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+static inline void telnetsrv_print_response(int client_idx, const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+
+  if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+    pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
+    if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+      telnetparams.websrv_prnt(fmt, args);
+      va_end(args);
+      pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+      return;
+    }
+    pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
+    va_end(args);
+  }
+
+  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
+    char msgbuff[TELNET_MAX_MSGLENGTH];
+    vsnprintf(msgbuff, sizeof(msgbuff) - 1, fmt, args);
+    send(telnet_clients[client_idx].socket, msgbuff, strlen(msgbuff), MSG_NOSIGNAL);
+  }
+  va_end(args);
+}
+
 #endif
 
 typedef void(*settelnetmodule_t)(char *name, void *ptr);
@@ -203,6 +265,7 @@ VT escape sequence definition, for smarter display....
 typedef int(*add_telnetcmd_func_t)(const char *, telnetshell_vardef_t *, telnetshell_cmddef_t *);
 typedef void(*poll_telnetcmdq_func_t)(void *qid,void *arg);
 typedef void (*push_telnetcmd_func_t)(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);
+typedef void (*push_telnetcmd_wait_func_t)(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);
 #ifdef TELNETSERVERCODE
 int add_telnetcmd(char *modulename, telnetshell_vardef_t *var, telnetshell_cmddef_t *cmd);
 void set_sched(pthread_t tid, int pid,int priority);
@@ -215,9 +278,11 @@ int telnetsrv_pthread_start(void);
 void *run_telnetsrv_itti(void *arg);
 int telnetsrv_itti_start(void);
 void client_printf_to_client(int client_idx, const char *message, ...);
+void telnet_pushcmd_wait(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);
 #endif
 #ifdef WEBSERVERCODE
 extern void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);
+extern void telnet_pushcmd_wait(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt);
 extern telnetsrv_params_t *get_telnetsrv_params(void);
 extern char *telnet_getvarvalue(telnetshell_vardef_t *var, int varindex);
 extern int telnet_setvarvalue(telnetshell_vardef_t *var, char *strval, telnet_printfunc_t prnt);
