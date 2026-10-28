@@ -21,6 +21,7 @@
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "openair2/LAYER2/NR_MAC_gNB/mac_config.h"
 
+#define TELNETSERVERCODE
 #include "telnetsrv.h"
 #include "telnetsrv_itti_handlers.h"
 
@@ -33,21 +34,6 @@ extern telnetsrv_params_t telnetparams;
 
 // Forward declaration for async printf
 void websrv_async_printf(const char *message, ...);
-
-static inline bool telnetsrv_client_idx_valid(int client_idx)
-{
-  return (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active);
-}
-
-static inline bool telnetsrv_client_idx_valid_or_web_active(int client_idx)
-{
-  if (client_idx == WEBSRV_CLIENT_IDX) {
-    return true;
-  }
-  return telnetsrv_client_idx_valid(client_idx);
-}
-
-#define TELNET_CLIENT_IF_VALID(client_idx) if (telnetsrv_client_idx_valid_or_web_active(client_idx))
 
 #define TELNET_PRINT_TO_CLIENT(client_idx, fmt, ...) \
   do { \
@@ -114,7 +100,7 @@ void telnetsrv_handle_rrc_get_single_ue_rnti(Rrc_get_single_ue_rnti *rrc_msg)
     TELNET_PRINT_TO_CLIENT(client_idx, "no RRC present\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS) {
+  if (telnetsrv_client_idx_valid(client_idx)) {
     telnet_clients[client_idx].pending_reestab = false;
     telnet_clients[client_idx].pending_reestab_count = false;
     telnet_clients[client_idx].pending_f1_ho = false;
@@ -139,7 +125,7 @@ void telnetsrv_handle_mac_trigger_reestab_for_first_rnti(Mac_trigger_reestab_for
                            "Failed to trigger reestablishment: no UE found\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS) {
+  if (telnetsrv_client_idx_valid(client_idx)) {
     telnet_clients[client_idx].pending_reestab = false;
   }
 }
@@ -163,7 +149,9 @@ void telnetsrv_handle_rrc_get_ue_context_by_ue_id(Rrc_get_single_ue_rnti *rrc_ms
     TELNET_PRINT_TO_CLIENT(client_idx, "could not find UE with ue_id in RRC\n");
   }
 
-  telnet_clients[client_idx].pending_reestab_count = false;
+  if (telnetsrv_client_idx_valid(client_idx)) {
+    telnet_clients[client_idx].pending_reestab_count = false;
+  }
 }
 
 void telnetsrv_handle_rrc_get_du_id_by_ue_id(Rrc_get_du_id_by_ue_id *rrc_msg)
@@ -336,7 +324,7 @@ void telnetsrv_handle_mac_get_ue_rnti(Mac_get_ue_rnti *mac_msg)
     TELNET_PRINT_TO_CLIENT(client_idx, "no MAC/RLC present\n");
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS) {
+  if (telnetsrv_client_idx_valid(client_idx)) {
     telnet_clients[client_idx].pending_reestab = false;
     telnet_clients[client_idx].pending_ul_failure = false;
     telnet_clients[client_idx].pending_ue_release = false;

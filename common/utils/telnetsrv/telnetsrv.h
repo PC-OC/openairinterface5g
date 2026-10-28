@@ -19,9 +19,9 @@
 
 #define TELNET_LOG(fmt, ...)                               \
   do {                                                     \
-    if (telnetparams.websrv_active && telnetparams.websrv_prnt) { \
+    if (telnetparams.current_client_idx == WEBSRV_CLIENT_IDX && telnetparams.websrv_prnt) { \
       pthread_mutex_lock(&telnetparams.websrv_callback_mutex); \
-      if (telnetparams.websrv_active && telnetparams.websrv_prnt) { \
+      if (telnetparams.websrv_prnt) { \
         telnetparams.websrv_prnt("[TELNETSRV] " fmt, ##__VA_ARGS__); \
         pthread_mutex_unlock(&telnetparams.websrv_callback_mutex); \
       } else { \
@@ -42,6 +42,7 @@
 #define TELNET_HELPSTR_SIZE       80
 
 #define WEBSRV_CLIENT_IDX 0  // Dedicated client index for websrv
+                             // Reserve slot 0 for web server, reducing max concurrent telnet clients to 9
 
 /* status return by the command parser after it analysed user input */
 #define CMDSTATUS_NOCMD       0
@@ -76,7 +77,13 @@ typedef struct webdatadef {
 /* This is the second parameter of the add_telnetcmd function, which can be used   */
 /* to add a set of new command to the telnet server shell */
 typedef void(*telnet_printfunc_t)(const char* format, ...);
-typedef int(*cmdfunc_t)(char*, int, telnet_printfunc_t prnt);
+
+/* Specific function pointer types for improved type safety */
+typedef int(*telnet_cmd_func_t)(char* cmdbuff, int debug, telnet_printfunc_t prnt);
+typedef int(*telnet_async_cmd_func_t)(char* cmdbuff, int debug, telnet_printfunc_t prnt, void *arg);
+
+/* Legacy type names for backward compatibility */
+typedef telnet_cmd_func_t cmdfunc_t;
 typedef int (*webfunc_t)(char *cmdbuff, int debug, telnet_printfunc_t prnt, ...);
 typedef int (*webfunc_getdata_t)(const char *cmdbuff, int debug, void *data, telnet_printfunc_t prnt);
 
@@ -91,6 +98,8 @@ typedef int (*webfunc_getdata_t)(const char *cmdbuff, int debug, void *data, tel
 #define TELNETSRV_CMDFLAG_AUTOUPDATE (1 << 12) // command can be re-submitted automatically for result update
 
 #define TELNET_MAX_CLIENTS 10
+
+typedef char websrv_client_idx_check[(WEBSRV_CLIENT_IDX >= 0 && WEBSRV_CLIENT_IDX < TELNET_MAX_CLIENTS) ? 1 : -1];
 
 typedef struct {
   int socket;
@@ -107,6 +116,22 @@ typedef struct {
 
 #ifdef TELNETSERVERCODE
 extern telnet_client_t telnet_clients[TELNET_MAX_CLIENTS];
+
+/* Helper functions for client index validation */
+static inline bool telnetsrv_client_idx_valid(int client_idx)
+{
+  return (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active);
+}
+
+static inline bool telnetsrv_client_idx_valid_or_web_active(int client_idx)
+{
+  if (client_idx == WEBSRV_CLIENT_IDX) {
+    return true;
+  }
+  return telnetsrv_client_idx_valid(client_idx);
+}
+
+#define TELNET_CLIENT_IF_VALID(client_idx) if (telnetsrv_client_idx_valid_or_web_active(client_idx))
 #endif
 
 typedef struct cmddef {
@@ -191,11 +216,16 @@ typedef struct {
      unsigned int   loopcount;            // loop command param: number of loop iteration
      unsigned int   loopdelay;            // loop command param: delay in ms between 2 iterations
      unsigned int   phyprntbuff_size;     // for phy module,  dump_eNB_stats function buffer size
+     unsigned int   cmdq_timeout_ms;    // command queue timeout in milliseconds
      pthread_mutex_t websrv_callback_mutex; // mutex to protect websrv callback access
-     bool websrv_active;              // true when processing a web request
      telnet_printfunc_t websrv_prnt;   // callback for web server responses
      struct websrv_printf_t *websrv_printf_state; // pointer to current web server printf state
 } telnetsrv_params_t;
+
+static inline unsigned int get_cmdq_timeout_ms(void) {
+  extern telnetsrv_params_t telnetparams;
+  return telnetparams.cmdq_timeout_ms > 0 ? telnetparams.cmdq_timeout_ms : 5000;
+}
 
 typedef struct websrv_printf_t websrv_printf_t;
 
@@ -220,9 +250,9 @@ static inline void telnetsrv_print_response(int client_idx, const char *fmt, ...
   va_list args;
   va_start(args, fmt);
 
-  if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+  if (client_idx == WEBSRV_CLIENT_IDX) {
     pthread_mutex_lock(&telnetparams.websrv_callback_mutex);
-    if (telnetparams.websrv_active && telnetparams.websrv_prnt) {
+    if (telnetparams.websrv_prnt) {
       telnetparams.websrv_prnt(fmt, args);
       va_end(args);
       pthread_mutex_unlock(&telnetparams.websrv_callback_mutex);
@@ -232,7 +262,7 @@ static inline void telnetsrv_print_response(int client_idx, const char *fmt, ...
     va_end(args);
   }
 
-  if (client_idx >= 0 && client_idx < TELNET_MAX_CLIENTS && telnet_clients[client_idx].active) {
+  if (telnetsrv_client_idx_valid(client_idx)) {
     char msgbuff[TELNET_MAX_MSGLENGTH];
     vsnprintf(msgbuff, sizeof(msgbuff) - 1, fmt, args);
     send(telnet_clients[client_idx].socket, msgbuff, strlen(msgbuff), MSG_NOSIGNAL);

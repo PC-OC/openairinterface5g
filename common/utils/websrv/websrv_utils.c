@@ -27,11 +27,43 @@ typedef struct websrv_printf_t {
   char *buffptr; // pointer to free portion of buff
   bool async; // the buffer will be used to print from another thread than the callback (command pushed in a tpool queue)
   bool abandoned; // true if this state was abandoned (replaced by a new request without proper cleanup)
+  volatile int refcount; // reference count for thread-safe state management
 } websrv_printf_t;
 
-__thread websrv_printf_t *thread_local_websrv_printf_state = NULL;
+/*
+ * RAII-style helper macro for safe websrv state access
+ * Usage:
+ *   WITH_WEBSRV_STATE(state, {
+ *     // use state here
+ *   });
+ */
+#define WITH_WEBSRV_STATE(state_var, code_block) \
+  do { \
+    telnetsrv_params_t *tparams = get_telnetsrv_params(); \
+    websrv_printf_t *state_var = NULL; \
+    if (tparams) { \
+      pthread_mutex_lock(&tparams->websrv_callback_mutex); \
+      state_var = tparams->websrv_printf_state; \
+      if (state_var) { \
+        __atomic_fetch_add(&state_var->refcount, 1, __ATOMIC_SEQ_CST); \
+      } \
+      pthread_mutex_unlock(&tparams->websrv_callback_mutex); \
+    } \
+    if (state_var == NULL) { \
+      LOG_E(UTIL, "[websrv] NULL state in %s\n", __FUNCTION__); \
+    } else { \
+      code_block \
+      websrv_release_state(state_var); \
+    } \
+  } while (0)
 
-
+static inline bool websrv_state_valid(websrv_printf_t *state)
+{
+  if (state == NULL) {
+    return false;
+  }
+  return !state->abandoned;
+}
 
 /*--------------------- functions for help ------------------------*/
 /* possibly build a help file to be downloaded by the frontend */
@@ -145,12 +177,12 @@ int websrv_string_response(char *astring, struct _u_response *response, int http
 }
 /*----------------------------------------------------------------------------------*/
 /* set of calls to fill a buffer with a string and  use this buffer in a response */
-void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
+int websrv_printf_start(struct _u_response *response, int buffsize, bool async, websrv_printf_t **state_out)
 {
   websrv_printf_t *state = calloc(1, sizeof(*state));
   if (state == NULL) {
     LOG_E(UTIL, "[websrv] calloc failed in websrv_printf_start\n");
-    return;
+    return -1;
   }
 
   pthread_mutexattr_t attr;
@@ -158,7 +190,7 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
   if (rc != 0) {
     LOG_E(UTIL, "[websrv] pthread_mutexattr_init failed in websrv_printf_start: %s\n", strerror(rc));
     free(state);
-    return;
+    return -1;
   }
 
   rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -166,7 +198,7 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
     LOG_E(UTIL, "[websrv] pthread_mutexattr_settype failed in websrv_printf_start: %s\n", strerror(rc));
     pthread_mutexattr_destroy(&attr);
     free(state);
-    return;
+    return -1;
   }
 
   rc = pthread_mutex_init(&state->mutex, &attr);
@@ -174,7 +206,7 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
     LOG_E(UTIL, "[websrv] pthread_mutex_init failed in websrv_printf_start: %s\n", strerror(rc));
     pthread_mutexattr_destroy(&attr);
     free(state);
-    return;
+    return -1;
   }
   pthread_mutexattr_destroy(&attr);
 
@@ -183,7 +215,7 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
     LOG_E(UTIL, "[websrv] calloc failed for buffer in websrv_printf_start\n");
     pthread_mutex_destroy(&state->mutex);
     free(state);
-    return;
+    return -1;
   }
 
   state->buffptr = state->buff;
@@ -191,14 +223,15 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
   state->response = response;
   state->async = async;
   state->abandoned = false;
+  state->refcount = 1;
 
   telnetsrv_params_t *tparams = get_telnetsrv_params();
   if (tparams == NULL) {
-    LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in websrv_printf_start\n");
+    LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in %s\n", __FUNCTION__);
     pthread_mutex_destroy(&state->mutex);
     free(state->buff);
     free(state);
-    return;
+    return -1;
   }
   pthread_mutex_lock(&tparams->websrv_callback_mutex);
   if (tparams->websrv_printf_state != NULL) {
@@ -207,35 +240,69 @@ void websrv_printf_start(struct _u_response *response, int buffsize, bool async)
     old_state->abandoned = true;
     pthread_mutex_unlock(&old_state->mutex);
     LOG_W(UTIL, "[websrv] Previous state was abandoned (missing websrv_printf_end call?)\n");
-    pthread_mutex_destroy(&old_state->mutex);
-    free(old_state->buff);
-    free(old_state);
+    // Don't destroy/free here - let reference counting handle cleanup
+    // The old state will be automatically cleaned up when its refcount reaches 0
   }
   tparams->websrv_printf_state = state;
-  thread_local_websrv_printf_state = state;
   pthread_mutex_unlock(&tparams->websrv_callback_mutex);
+
+  if (state_out != NULL) {
+    *state_out = state;
+  }
+  return 0;
+}
+
+websrv_printf_t *websrv_get_state_safe(void)
+{
+  telnetsrv_params_t *tparams = get_telnetsrv_params();
+  if (tparams == NULL) {
+    LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in %s\n", __FUNCTION__);
+    return NULL;
+  }
+
+  pthread_mutex_lock(&tparams->websrv_callback_mutex);
+  websrv_printf_t *state = tparams->websrv_printf_state;
+  if (state != NULL) {
+    __atomic_fetch_add(&state->refcount, 1, __ATOMIC_SEQ_CST);
+  }
+  pthread_mutex_unlock(&tparams->websrv_callback_mutex);
+  return state;
+}
+
+void websrv_release_state(websrv_printf_t *state)
+{
+  if (state == NULL) {
+    return;
+  }
+
+  if (__atomic_fetch_sub(&state->refcount, 1, __ATOMIC_SEQ_CST) == 1) {
+    telnetsrv_params_t *tparams = get_telnetsrv_params();
+    if (tparams != NULL) {
+      pthread_mutex_lock(&tparams->websrv_callback_mutex);
+      if (tparams->websrv_printf_state == state) {
+        tparams->websrv_printf_state = NULL;
+      }
+      pthread_mutex_unlock(&tparams->websrv_callback_mutex);
+    }
+
+    pthread_mutex_destroy(&state->mutex);
+    free(state->buff);
+    free(state);
+  }
 }
 
 void websrv_printf_atpos(int pos, const char *message, ...)
 {
-  websrv_printf_t *state = thread_local_websrv_printf_state;
-
+  websrv_printf_t *state = websrv_get_state_safe();
   if (state == NULL) {
-    telnetsrv_params_t *tparams = get_telnetsrv_params();
-    if (tparams == NULL) {
-      LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in websrv_printf_atpos\n");
-      return;
-    }
-    state = tparams->websrv_printf_state;
-    if (state == NULL) {
-      LOG_E(UTIL, "[websrv] websrv_printf_atpos called with NULL state\n");
-      return;
-    }
+    LOG_E(UTIL, "[websrv] websrv_printf_atpos called with NULL state in %s\n", __FUNCTION__);
+    return;
   }
 
   int rc = pthread_mutex_lock(&state->mutex);
   if (rc != 0) {
-    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in websrv_printf_atpos: %s\n", strerror(rc));
+    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in %s: %s\n", __FUNCTION__, strerror(rc));
+    websrv_release_state(state);
     return;
   }
 
@@ -270,29 +337,22 @@ void websrv_printf_atpos(int pos, const char *message, ...)
   if (rc != 0) {
     LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf_atpos: %s\n", strerror(rc));
   }
+  websrv_release_state(state);
   return;
 }
 
 void websrv_printf(const char *message, ...)
 {
-  websrv_printf_t *state = thread_local_websrv_printf_state;
-
+  websrv_printf_t *state = websrv_get_state_safe();
   if (state == NULL) {
-    telnetsrv_params_t *tparams = get_telnetsrv_params();
-    if (tparams == NULL) {
-      LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in websrv_printf\n");
-      return;
-    }
-    state = tparams->websrv_printf_state;
-    if (state == NULL) {
-      LOG_E(UTIL, "[websrv] websrv_printf called with NULL state\n");
-      return;
-    }
+    LOG_E(UTIL, "[websrv] websrv_printf called with NULL state in %s\n", __FUNCTION__);
+    return;
   }
 
   int rc = pthread_mutex_lock(&state->mutex);
   if (rc != 0) {
-    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in websrv_printf: %s\n", strerror(rc));
+    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in %s: %s\n", __FUNCTION__, strerror(rc));
+    websrv_release_state(state);
     return;
   }
 
@@ -306,6 +366,7 @@ void websrv_printf(const char *message, ...)
     if (rc != 0) {
       LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf: %s\n", strerror(rc));
     }
+    websrv_release_state(state);
     return;
   }
 
@@ -327,60 +388,22 @@ void websrv_printf(const char *message, ...)
   if (rc != 0) {
     LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf: %s\n", strerror(rc));
   }
+  websrv_release_state(state);
   return;
-}
-
-static void websrv_printf_state_cleanup(websrv_printf_t *state, telnetsrv_params_t *tparams)
-{
-  if (state == NULL) {
-    return;
-  }
-
-  bool should_free = false;
-  if (tparams != NULL) {
-    pthread_mutex_lock(&tparams->websrv_callback_mutex);
-    if (tparams->websrv_printf_state == state) {
-      tparams->websrv_printf_state = NULL;
-      should_free = true;
-    }
-    pthread_mutex_unlock(&tparams->websrv_callback_mutex);
-  } else {
-    should_free = true;
-  }
-
-  if (should_free) {
-    if (thread_local_websrv_printf_state == state) {
-      thread_local_websrv_printf_state = NULL;
-    }
-
-    pthread_mutex_destroy(&state->mutex);
-    free(state->buff);
-    free(state);
-  }
 }
 
 void websrv_printf_end(int httpstatus, int dbglvl)
 {
-  websrv_printf_t *state = thread_local_websrv_printf_state;
-  telnetsrv_params_t *tparams = NULL;
-
+  websrv_printf_t *state = websrv_get_state_safe();
   if (state == NULL) {
-    tparams = get_telnetsrv_params();
-    if (tparams == NULL) {
-      LOG_E(UTIL, "[websrv] get_telnetsrv_params returned NULL in websrv_printf_end\n");
-      return;
-    }
-    state = tparams->websrv_printf_state;
-    if (state == NULL) {
-      LOG_E(UTIL, "[websrv] websrv_printf_end called with NULL state\n");
-      return;
-    }
+    LOG_E(UTIL, "[websrv] websrv_printf_end called with NULL state in %s\n", __FUNCTION__);
+    return;
   }
 
   int rc = pthread_mutex_lock(&state->mutex);
   if (rc != 0) {
-    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in websrv_printf_end: %s\n", strerror(rc));
-    websrv_printf_state_cleanup(state, tparams);
+    LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in %s: %s\n", __FUNCTION__, strerror(rc));
+    websrv_release_state(state);
     return;
   }
 
@@ -389,7 +412,7 @@ void websrv_printf_end(int httpstatus, int dbglvl)
     if (rc != 0) {
       LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf_end: %s\n", strerror(rc));
     }
-    thread_local_websrv_printf_state = NULL;
+    websrv_release_state(state);
     return;
   }
 
@@ -403,7 +426,7 @@ void websrv_printf_end(int httpstatus, int dbglvl)
       LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf_end (async wait): %s\n", strerror(rc));
     }
     mutex_held = false;
-    usleep(10000); // Wait 10ms per iteration (instead of 10us)
+    usleep(10000); // Wait 10ms per iteration
     count++;
 
     if (count >= 200) { // Wait up to 200 * 10ms = 2000ms
@@ -415,7 +438,7 @@ void websrv_printf_end(int httpstatus, int dbglvl)
     rc = pthread_mutex_lock(&state->mutex);
     if (rc != 0) {
       LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in websrv_printf_end (retry): %s\n", strerror(rc));
-      websrv_printf_state_cleanup(state, tparams);
+      websrv_release_state(state);
       return;
     }
     mutex_held = true;
@@ -426,7 +449,7 @@ void websrv_printf_end(int httpstatus, int dbglvl)
       rc = pthread_mutex_lock(&state->mutex);
       if (rc != 0) {
         LOG_E(UTIL, "[websrv] pthread_mutex_lock failed in websrv_printf_end (timeout recovery): %s\n", strerror(rc));
-        websrv_printf_state_cleanup(state, tparams);
+        websrv_release_state(state);
         return;
       }
       mutex_held = true;
@@ -451,41 +474,25 @@ void websrv_printf_end(int httpstatus, int dbglvl)
 
   state->async = false;
 
-  free(state->buff);
-  state->buff = NULL;
-
   rc = pthread_mutex_unlock(&state->mutex);
   if (rc != 0) {
     LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_printf_end: %s\n", strerror(rc));
   }
-
-  if (tparams == NULL) {
-    tparams = get_telnetsrv_params();
-  }
-  websrv_printf_state_cleanup(state, tparams);
+  websrv_release_state(state);
 }
 
 void websrv_async_printf(const char *message, ...)
 {
-  websrv_printf_t *state = thread_local_websrv_printf_state;
-  telnetsrv_params_t *tparams = NULL;
-
+  websrv_printf_t *state = websrv_get_state_safe();
   if (state == NULL) {
-    tparams = get_telnetsrv_params();
-    if (tparams == NULL) {
-      LOG_W(UTIL, "[websrv] get_telnetsrv_params returned NULL in websrv_async_printf\n");
-      return;
-    }
-    state = tparams->websrv_printf_state;
-    if (state == NULL) {
-      LOG_W(UTIL, "[websrv] websrv_async_printf called with NULL state (no active web request)\n");
-      return;
-    }
+    LOG_W(UTIL, "[websrv] websrv_async_printf called with NULL state in %s (no active web request)\n", __FUNCTION__);
+    return;
   }
 
   int rc = pthread_mutex_trylock(&state->mutex);
   if (rc != 0) {
-    LOG_D(UTIL, "[websrv] websrv_async_printf: could not lock state mutex, skipping message\n");
+    LOG_W(UTIL, "[websrv] websrv_async_printf in %s: could not lock state mutex, skipping message\n", __FUNCTION__);
+    websrv_release_state(state);
     return;
   }
 
@@ -494,6 +501,7 @@ void websrv_async_printf(const char *message, ...)
     if (rc != 0) {
       LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_async_printf: %s\n", strerror(rc));
     }
+    websrv_release_state(state);
     return;
   }
 
@@ -523,6 +531,7 @@ void websrv_async_printf(const char *message, ...)
   if (rc != 0) {
     LOG_E(UTIL, "[websrv] pthread_mutex_unlock failed in websrv_async_printf: %s\n", strerror(rc));
   }
+  websrv_release_state(state);
   return;
 }
 /* */
@@ -612,3 +621,4 @@ FILE *websrv_getfile(char *filename, struct _u_response *response)
   return f;
 }
 /* */
+

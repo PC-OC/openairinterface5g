@@ -20,8 +20,6 @@
 #include "common/utils/load_module_shlib.h"
 #include <arpa/inet.h>
 
-//#define WEBSRV_AUTH
-
 static websrv_params_t websrvparams;
 static telnetsrv_params_t *dummy_telnetsrv_params = NULL;
 paramdef_t websrvoptions[] = {
@@ -43,6 +41,13 @@ void register_module_endpoints(cmdparser_t *module);
 
 void websrv_gettbldata_response(struct _u_response *response, webdatadef_t *wdata, char *module, char *cmdtitle);
 int websrv_callback_get_softmodemcmd(const struct _u_request *request, struct _u_response *response, void *user_data);
+
+static inline uint64_t get_current_time_ms(void)
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+}
 
 /*--------------------------------------------------------------------------------------------------*/
 /* format a json response from a result table returned from a call to a telnet server command       */
@@ -153,7 +158,10 @@ int websrv_callback_get_softmodemfile(const struct _u_request *request, struct _
 /*------------------------------------------------------------------------------------------------------------------------*/
 int websrv_callback_set_moduleparams(const struct _u_request *request, struct _u_response *response, void *user_data)
 {
-  websrv_printf_start(response, 200, false);
+  if (websrv_printf_start(response, 200, false, NULL) != 0) {
+    LOG_E(UTIL, "[websrv] websrv_printf_start failed in %s\n", __FUNCTION__);
+    return U_CALLBACK_ERROR;
+  }
   LOG_I(UTIL, "[websrv] %s received: %s %s\n", __FUNCTION__, request->http_verb, request->http_url);
   json_error_t jserr;
   json_t *jsbody = ulfius_get_json_body_request(request, &jserr);
@@ -288,7 +296,7 @@ int websrv_callback_newmodule(const struct _u_request *request, struct _u_respon
   LOG_I(UTIL, "[websrv] callback_newmodule received %s %s\n", request->http_verb, request->http_url);
   if (user_data == NULL) {
     ulfius_set_string_body_response(response, 500, "Cannot access oai softmodem data");
-    LOG_E(UTIL, "[websrv] callback_newmodule: user-data is NULL");
+    LOG_E(UTIL, "[websrv] callback_newmodule: user-data is NULL in %s\n", __FUNCTION__);
     return U_CALLBACK_COMPLETE;
   }
   telnetsrv_params_t *telnetparams = (telnetsrv_params_t *)user_data;
@@ -331,7 +339,10 @@ int websrv_callback_okset_softmodem_cmdvar(const struct _u_request *request, str
 int websrv_callback_set_softmodemvar(const struct _u_request *request, struct _u_response *response, void *user_data)
 {
   LOG_I(UTIL, "[websrv] : callback_set_softmodemvar received %s %s\n", request->http_verb, request->http_url);
-  websrv_printf_start(response, 256, false);
+  if (websrv_printf_start(response, 256, false, NULL) != 0) {
+    LOG_E(UTIL, "[websrv] websrv_printf_start failed in %s\n", __FUNCTION__);
+    return U_CALLBACK_ERROR;
+  }
   json_error_t jserr;
   json_t *jsbody = ulfius_get_json_body_request(request, &jserr);
   int httpstatus = 404;
@@ -435,7 +446,6 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
 	   default:
 	     http_status=500;
 	   break;
-//     json_unpack_ex(jparams, &jerror, 0, "[{s:s,s:s,s:s,s,b}]", "name", &pname, "value", &pvalue, "type", &ptype, "modifiable", &b);
 
 	  }
     if (jrt <0 || http_status != 200) {
@@ -465,30 +475,37 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
             (np > 0) ? pvalue[0] : "",
             (np > 1) ? " " : "",
             (np > 1) ? pvalue[1] : "");
-    websrv_printf_start(response, 16384, true);
+
+    if (websrv_printf_start(response, 16384, true, NULL) != 0) {
+      LOG_E(UTIL, "[websrv] websrv_printf_start failed in %s\n", __FUNCTION__);
+      return http_status;
+    }
 
     telnetsrv_params_t *tparams = (telnetsrv_params_t *)websrvparams.telnetparams;
 
     // Save current client index and set to websrv client
     int old_client_idx = -1;
     if (tparams) {
+      pthread_mutex_lock(&tparams->websrv_callback_mutex);
       old_client_idx = tparams->current_client_idx;
       tparams->current_client_idx = WEBSRV_CLIENT_IDX;
-    }
-
-    // Set websrv_prnt for this command
-    if (tparams) {
-      pthread_mutex_lock(&tparams->websrv_callback_mutex);
       tparams->websrv_prnt = websrv_async_printf;
       pthread_mutex_unlock(&tparams->websrv_callback_mutex);
     }
 
+    uint64_t request_start = get_current_time_ms();
     telnet_pushcmd_wait(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_async_printf);
+    uint64_t elapsed = get_current_time_ms() - request_start;
+
+    if (elapsed > 30000) {
+      LOG_W(UTIL, "[websrv] Command execution for %s timed out after %lu ms\n", cmd->cmdname, elapsed);
+      http_status = 504;
+    }
 
     // Restore old client index
     if (tparams) {
-      tparams->current_client_idx = old_client_idx;
       pthread_mutex_lock(&tparams->websrv_callback_mutex);
+      tparams->current_client_idx = old_client_idx;
       tparams->websrv_prnt = NULL;
       pthread_mutex_unlock(&tparams->websrv_callback_mutex);
     }
@@ -503,7 +520,7 @@ int websrv_callback_exec_softmodemcmd(const struct _u_request *request, struct _
   LOG_I(UTIL, "[websrv] : callback_exec_softmodemcmd received %s %s\n", request->http_verb, request->http_url);
   if (user_data == NULL) {
     ulfius_set_string_body_response(response, 500, "Cannot access oai softmodem data");
-    LOG_E(UTIL, "[websrv] callback_exec_softmodemcmd: user-data is NULL");
+    LOG_E(UTIL, "[websrv] callback_exec_softmodemcmd: user-data is NULL in %s\n", __FUNCTION__);
     return U_CALLBACK_COMPLETE;
   }
   cmdparser_t *modulestruct = (cmdparser_t *)user_data;
@@ -682,6 +699,11 @@ int websrv_callback_get_softmodemcmd(const struct _u_request *request, struct _u
 int websrv_callback_get_softmodemmodules(const struct _u_request *request, struct _u_response *response, void *user_data)
 {
   telnetsrv_params_t *telnetparams = (telnetsrv_params_t *)websrvparams.telnetparams;
+  
+  if (telnetparams == NULL) {
+    LOG_E(UTIL, "[websrv] telnetparams is NULL in %s\n", __FUNCTION__);
+    return U_CALLBACK_ERROR;
+  }
 
   json_t *cmdnames = json_array();
   for (int i = 0; telnetparams->CmdParsers[i].var != NULL && telnetparams->CmdParsers[i].cmd != NULL; i++) {
