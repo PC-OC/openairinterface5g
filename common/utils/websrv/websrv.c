@@ -468,22 +468,22 @@ int websrv_processwebfunc(struct _u_response *response, cmdparser_t *modulestruc
     websrv_printf_start(response, 16384, true);
 
     telnetsrv_params_t *tparams = (telnetsrv_params_t *)websrvparams.telnetparams;
-    
+
     // Save current client index and set to websrv client
     int old_client_idx = -1;
     if (tparams) {
       old_client_idx = tparams->current_client_idx;
       tparams->current_client_idx = WEBSRV_CLIENT_IDX;
     }
-    
+
     // Set websrv_prnt for this command
     if (tparams) {
       pthread_mutex_lock(&tparams->websrv_callback_mutex);
-      tparams->websrv_prnt = websrv_printf;
+      tparams->websrv_prnt = websrv_async_printf;
       pthread_mutex_unlock(&tparams->websrv_callback_mutex);
     }
 
-    telnet_pushcmd_wait(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_printf);
+    telnet_pushcmd_wait(cmd, cmdbuff[0] != '\0' ? cmdbuff : NULL, websrv_async_printf);
 
     // Restore old client index
     if (tparams) {

@@ -194,7 +194,10 @@ typedef struct {
      pthread_mutex_t websrv_callback_mutex; // mutex to protect websrv callback access
      bool websrv_active;              // true when processing a web request
      telnet_printfunc_t websrv_prnt;   // callback for web server responses
+     struct websrv_printf_t *websrv_printf_state; // pointer to current web server printf state
 } telnetsrv_params_t;
+
+typedef struct websrv_printf_t websrv_printf_t;
 
 #ifdef TELNETSERVERCODE
 extern telnetsrv_params_t telnetparams;
